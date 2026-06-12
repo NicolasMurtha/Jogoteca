@@ -170,6 +170,97 @@ public sealed class GameApiServiceTests
         Assert.Equal(0, handler.RawgCalls);
     }
 
+    [Fact]
+    public async Task LoadsPagedLatestCatalogUsingOnlyRawgWhenConfigured()
+    {
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            if (request.RequestUri?.Host == "api.rawg.io")
+            {
+                return Json(
+                    """
+                    {
+                      "results": [
+                        {
+                          "id": 501,
+                          "name": "Novo lançamento",
+                          "released": "2026-06-01",
+                          "background_image": "https://example.com/new.jpg",
+                          "genres": [{"name": "Action"}]
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+        });
+
+        using var service = new GameApiService(handler);
+        var page = await service.GetCatalogAsync(
+            CatalogFeed.Latest,
+            2,
+            new AppSettings { RawgApiKey = "rawg" },
+            CancellationToken.None);
+
+        var game = Assert.Single(page.Results);
+        Assert.Equal("rawg", game.Source);
+        Assert.Equal("Novo lançamento", game.Name);
+        Assert.False(page.HasMore);
+        Assert.Contains("page=2", handler.LastRawgUri?.Query);
+        Assert.Contains("ordering=-released", handler.LastRawgUri?.Query);
+        Assert.Equal(0, handler.IgdbCalls);
+    }
+
+    [Fact]
+    public async Task CatalogFallsBackToRawgWhenIgdbReturnsNoGames()
+    {
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            if (request.RequestUri?.Host == "id.twitch.tv")
+            {
+                return Json("""{"access_token":"token","expires_in":3600}""");
+            }
+
+            if (request.RequestUri?.Host == "api.igdb.com")
+            {
+                return Json("[]");
+            }
+
+            if (request.RequestUri?.Host == "api.rawg.io")
+            {
+                return Json(
+                    """
+                    {
+                      "results": [
+                        {
+                          "id": 777,
+                          "name": "Catálogo fallback",
+                          "released": "2025-05-10",
+                          "background_image": null,
+                          "genres": []
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var service = new GameApiService(handler);
+        var page = await service.GetCatalogAsync(
+            CatalogFeed.Recommended,
+            1,
+            CompleteSettings(),
+            CancellationToken.None);
+
+        Assert.Equal("rawg", Assert.Single(page.Results).Source);
+        Assert.Contains("fallback", page.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(1, handler.IgdbCalls);
+        Assert.Equal(1, handler.RawgCalls);
+    }
+
     private static AppSettings CompleteSettings()
     {
         return new AppSettings
@@ -194,6 +285,7 @@ public sealed class GameApiServiceTests
         public int RawgCalls { get; private set; }
         public int IgdbCalls { get; private set; }
         public int TwitchCalls { get; private set; }
+        public Uri? LastRawgUri { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -202,6 +294,7 @@ public sealed class GameApiServiceTests
             if (request.RequestUri?.Host == "api.rawg.io")
             {
                 RawgCalls++;
+                LastRawgUri = request.RequestUri;
             }
             else if (request.RequestUri?.Host == "api.igdb.com")
             {

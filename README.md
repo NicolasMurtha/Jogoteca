@@ -9,7 +9,8 @@ automático para o RAWG.
 - Tela Descobrir em formato de streaming, com faixas horizontais empilhadas.
 - Seções Para você, Trending games, Mais aguardados, Próximos lançamentos e Últimos lançamentos.
 - Biblioteca independente: todo jogo adicionado entra primeiro nela.
-- Organização por drag-and-drop dos cards para as listas.
+- Organização kanban: arraste um card de uma lista para outra para movê-lo.
+- Ações no hover para retirar somente da lista atual ou excluir da biblioteca.
 - Criação, edição e exclusão de listas com nome, emoji e cor.
 - Cadastro manual exigindo somente o nome.
 - Capa, nome, descrição, gêneros e ano de lançamento opcionais.

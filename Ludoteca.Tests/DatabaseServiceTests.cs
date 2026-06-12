@@ -95,6 +95,48 @@ public sealed class DatabaseServiceTests : IDisposable
         Assert.Empty((await database.GetMembershipsAsync(gameId)).Where(item => item.IsSelected));
     }
 
+    [Fact]
+    public async Task MovesGameBetweenListsAndCanRemoveOnlyTheMembership()
+    {
+        var database = new DatabaseService(_testDirectory);
+        await database.InitializeAsync();
+        var lists = await database.GetListsAsync();
+        var source = lists[0];
+        var target = lists[1];
+        var extra = lists[2];
+
+        var gameId = await database.UpsertGameAsync(
+            new GameSearchResult
+            {
+                Source = "manual",
+                ExternalId = Guid.NewGuid().ToString("N"),
+                Name = "Jogo em movimento"
+            },
+            string.Empty);
+        await database.AddGameToListAsync(gameId, source.Id);
+        await database.AddGameToListAsync(gameId, extra.Id);
+
+        await database.MoveGameBetweenListsAsync(gameId, source.Id, target.Id);
+
+        Assert.Empty(await database.GetGamesAsync(source.Id));
+        Assert.Single(await database.GetGamesAsync(target.Id));
+        Assert.Single(await database.GetGamesAsync(extra.Id));
+        Assert.Single(await database.GetGamesAsync(null));
+
+        await database.RemoveGameFromListAsync(gameId, target.Id);
+
+        Assert.Empty(await database.GetGamesAsync(target.Id));
+        Assert.Single(await database.GetGamesAsync(extra.Id));
+        Assert.Single(await database.GetGamesAsync(null));
+
+        await database.AddGameToListAsync(gameId, target.Id);
+        await database.DeleteGameAsync(gameId);
+
+        Assert.Empty(await database.GetGamesAsync(null));
+        Assert.Empty(await database.GetGamesAsync(target.Id));
+        Assert.Empty(await database.GetGamesAsync(extra.Id));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_testDirectory))

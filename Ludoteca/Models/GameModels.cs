@@ -73,6 +73,8 @@ public sealed class GameEntry : ObservableModel
     }
 }
 
+public sealed record GameDragData(GameEntry Game, int? SourceListId);
+
 public sealed class GameList : ObservableModel
 {
     private string _name = string.Empty;

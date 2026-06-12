@@ -100,6 +100,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     ];
     public ObservableCollection<ListMembershipOption> MembershipOptions { get; } = [];
 
+    public bool IsViewingList => _selectedListId.HasValue;
+
     public string SelectedListTitle
     {
         get => _selectedListTitle;
@@ -208,7 +210,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async void AllGamesButton_Click(object sender, RoutedEventArgs e)
     {
-        _selectedListId = null;
+        SetSelectedListId(null);
         SelectedListTitle = "Biblioteca";
         SelectedListSubtitle = "Todos os jogos que você adicionou";
         SetListActionButtonsVisible(false);
@@ -223,7 +225,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        _selectedListId = list.Id;
+        SetSelectedListId(list.Id);
         SelectedListTitle = $"{list.Emoji} {list.Name}".Trim();
         SelectedListSubtitle = ListSubtitle(list.GameCount);
         SetListActionButtonsVisible(true);
@@ -362,7 +364,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             else
             {
                 var list = await _database.CreateListAsync(name, _selectedListColor, emoji);
-                _selectedListId = list.Id;
+                SetSelectedListId(list.Id);
                 ShowToast($"Lista \"{name}\" criada.");
             }
 
@@ -410,7 +412,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         await _database.DeleteListAsync(selected.Id);
-        _selectedListId = null;
+        SetSelectedListId(null);
         SelectedListTitle = "Biblioteca";
         SelectedListSubtitle = "Todos os jogos que você adicionou";
         SetListActionButtonsVisible(false);
@@ -441,10 +443,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         _isDragging = true;
+        var dragData = new GameDragData(game, _selectedListId);
         DragDrop.DoDragDrop(
             (DependencyObject)sender,
-            new DataObject(typeof(GameEntry), game),
-            DragDropEffects.Copy);
+            new DataObject(typeof(GameDragData), dragData),
+            _selectedListId.HasValue
+                ? DragDropEffects.Move
+                : DragDropEffects.Copy);
         _ = Dispatcher.BeginInvoke(
             DispatcherPriority.Background,
             () => _isDragging = false);
@@ -452,13 +457,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void ListButton_DragEnter(object sender, DragEventArgs e)
     {
-        if (!e.Data.GetDataPresent(typeof(GameEntry)))
+        if (e.Data.GetData(typeof(GameDragData)) is not GameDragData dragData)
         {
             e.Effects = DragDropEffects.None;
             return;
         }
 
-        e.Effects = DragDropEffects.Copy;
+        e.Effects = dragData.SourceListId.HasValue
+            ? DragDropEffects.Move
+            : DragDropEffects.Copy;
         if (sender is Button button)
         {
             button.Background = BrushFromHex("#CFC4F5");
@@ -482,25 +489,70 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             button.Background = Brushes.Transparent;
         }
 
-        if (e.Data.GetData(typeof(GameEntry)) is not GameEntry game ||
+        if (e.Data.GetData(typeof(GameDragData)) is not GameDragData dragData ||
             (sender as FrameworkElement)?.DataContext is not GameList list)
+        {
+            return;
+        }
+
+        var game = dragData.Game;
+        if (dragData.SourceListId == list.Id)
+        {
+            ShowToast($"\"{game.Name}\" já está nesta lista.");
+            return;
+        }
+
+        try
+        {
+            if (dragData.SourceListId.HasValue)
+            {
+                await _database.MoveGameBetweenListsAsync(
+                    game.Id,
+                    dragData.SourceListId.Value,
+                    list.Id);
+                ShowToast($"\"{game.Name}\" foi movido para {list.Emoji} {list.Name}.");
+            }
+            else
+            {
+                await _database.AddGameToListAsync(game.Id, list.Id);
+                ShowToast($"\"{game.Name}\" foi adicionado a {list.Emoji} {list.Name}.");
+            }
+
+            await RefreshAllAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Não foi possível mover o jogo: {ex.Message}");
+        }
+    }
+
+    private async void RemoveGameFromCurrentList_Click(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (!_selectedListId.HasValue ||
+            (sender as FrameworkElement)?.DataContext is not GameEntry game)
         {
             return;
         }
 
         try
         {
-            await _database.AddGameToListAsync(game.Id, list.Id);
-            await RefreshListsAsync();
-            if (_selectedListId == list.Id)
-            {
-                await RefreshLibraryAsync();
-            }
-            ShowToast($"\"{game.Name}\" foi adicionado a {list.Emoji} {list.Name}.");
+            await _database.RemoveGameFromListAsync(game.Id, _selectedListId.Value);
+            await RefreshAllAsync();
+            ShowToast($"\"{game.Name}\" foi retirado desta lista.");
         }
         catch (Exception ex)
         {
-            ShowToast($"Não foi possível adicionar à lista: {ex.Message}");
+            ShowToast($"Não foi possível retirar o jogo da lista: {ex.Message}");
+        }
+    }
+
+    private async void DeleteGameFromCard_Click(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if ((sender as FrameworkElement)?.DataContext is GameEntry game)
+        {
+            await DeleteGameFromLibraryAsync(game, closeDetailOverlay: false);
         }
     }
 
@@ -1080,8 +1132,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
+        await DeleteGameFromLibraryAsync(_selectedGame, closeDetailOverlay: true);
+    }
+
+    private async Task DeleteGameFromLibraryAsync(
+        GameEntry game,
+        bool closeDetailOverlay)
+    {
         var result = MessageBox.Show(
-            $"Remover \"{_selectedGame.Name}\" da sua biblioteca?",
+            $"Remover \"{game.Name}\" da sua biblioteca?\n\nO jogo também será retirado de todas as listas.",
             "Remover jogo",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
@@ -1090,9 +1149,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        await _database.DeleteGameAsync(_selectedGame.Id);
-        DetailOverlay.Visibility = Visibility.Collapsed;
-        _selectedGame = null;
+        await _database.DeleteGameAsync(game.Id);
+        if (closeDetailOverlay)
+        {
+            DetailOverlay.Visibility = Visibility.Collapsed;
+            _selectedGame = null;
+        }
         await RefreshAllAsync();
         ShowToast("Jogo removido da biblioteca.");
     }
@@ -1225,7 +1287,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var selected = Lists.FirstOrDefault(list => list.Id == _selectedListId.Value);
         if (selected is null)
         {
-            _selectedListId = null;
+            SetSelectedListId(null);
             SetListActionButtonsVisible(false);
             return;
         }
@@ -1260,11 +1322,31 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         EmptyLibraryState.Visibility = Games.Count == 0
             ? Visibility.Visible
             : Visibility.Collapsed;
+        if (Games.Count == 0)
+        {
+            EmptyLibraryTitle.Text = _selectedListId.HasValue
+                ? "Esta lista está vazia"
+                : "Sua biblioteca ainda está vazia";
+            EmptyLibraryMessage.Text = _selectedListId.HasValue
+                ? "Arraste um jogo da Biblioteca ou de outra lista para começar a organizar."
+                : "Adicione jogos à biblioteca. Depois, arraste os cards entre as listas como em um kanban.";
+        }
     }
 
     private static string ListSubtitle(int gameCount)
     {
         return $"{gameCount} {(gameCount == 1 ? "jogo nesta lista" : "jogos nesta lista")}";
+    }
+
+    private void SetSelectedListId(int? listId)
+    {
+        if (_selectedListId == listId)
+        {
+            return;
+        }
+
+        _selectedListId = listId;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsViewingList)));
     }
 
     private void ShowSearchEmpty(string title, string message)

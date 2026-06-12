@@ -278,6 +278,60 @@ public sealed class DatabaseService
         await command.ExecuteNonQueryAsync();
     }
 
+    public async Task MoveGameBetweenListsAsync(
+        int gameId,
+        int sourceListId,
+        int targetListId)
+    {
+        if (sourceListId == targetListId)
+        {
+            return;
+        }
+
+        await using var connection = await OpenConnectionAsync();
+        await using var transaction = connection.BeginTransaction();
+        var now = DateTimeOffset.UtcNow.ToString("O");
+
+        var addTarget = connection.CreateCommand();
+        addTarget.Transaction = transaction;
+        addTarget.CommandText =
+            """
+            INSERT OR IGNORE INTO GameLists (GameId, ListId, AddedAt)
+            VALUES ($gameId, $targetListId, $addedAt);
+            """;
+        addTarget.Parameters.AddWithValue("$gameId", gameId);
+        addTarget.Parameters.AddWithValue("$targetListId", targetListId);
+        addTarget.Parameters.AddWithValue("$addedAt", now);
+        await addTarget.ExecuteNonQueryAsync();
+
+        var removeSource = connection.CreateCommand();
+        removeSource.Transaction = transaction;
+        removeSource.CommandText =
+            """
+            DELETE FROM GameLists
+            WHERE GameId = $gameId AND ListId = $sourceListId;
+            """;
+        removeSource.Parameters.AddWithValue("$gameId", gameId);
+        removeSource.Parameters.AddWithValue("$sourceListId", sourceListId);
+        await removeSource.ExecuteNonQueryAsync();
+
+        await transaction.CommitAsync();
+    }
+
+    public async Task RemoveGameFromListAsync(int gameId, int listId)
+    {
+        await using var connection = await OpenConnectionAsync();
+        var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            DELETE FROM GameLists
+            WHERE GameId = $gameId AND ListId = $listId;
+            """;
+        command.Parameters.AddWithValue("$gameId", gameId);
+        command.Parameters.AddWithValue("$listId", listId);
+        await command.ExecuteNonQueryAsync();
+    }
+
     public async Task<IReadOnlyList<ListMembershipOption>> GetMembershipsAsync(int gameId)
     {
         var memberships = new List<ListMembershipOption>();

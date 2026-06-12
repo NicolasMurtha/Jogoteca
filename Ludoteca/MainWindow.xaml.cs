@@ -40,8 +40,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _isDragging;
     private bool _isInitializingDetail;
     private bool _isCatalogLoading;
-    private bool _hasMoreLatest = true;
-    private int _nextLatestPage = 1;
     private string _selectedListColor = ListColors[0];
     private string _selectedListTitle = "Biblioteca";
     private string _selectedListSubtitle = "Todos os jogos que você adicionou";
@@ -67,8 +65,39 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<GameList> Lists { get; } = [];
     public ObservableCollection<GameEntry> Games { get; } = [];
     public ObservableCollection<GameSearchResult> SearchResults { get; } = [];
-    public ObservableCollection<GameSearchResult> RecommendedGames { get; } = [];
-    public ObservableCollection<GameSearchResult> LatestGames { get; } = [];
+    public ObservableCollection<CatalogSection> CatalogSections { get; } =
+    [
+        new CatalogSection
+        {
+            Feed = CatalogFeed.Recommended,
+            Title = "Para você",
+            Subtitle = "Jogos bem avaliados para começar uma nova aventura."
+        },
+        new CatalogSection
+        {
+            Feed = CatalogFeed.Trending,
+            Title = "Trending games",
+            Subtitle = "Os jogos que estão concentrando a atenção dos jogadores agora."
+        },
+        new CatalogSection
+        {
+            Feed = CatalogFeed.MostAnticipated,
+            Title = "Mais aguardados",
+            Subtitle = "Os próximos títulos com maior expectativa da comunidade."
+        },
+        new CatalogSection
+        {
+            Feed = CatalogFeed.Upcoming,
+            Title = "Próximos lançamentos",
+            Subtitle = "O que está chegando nos próximos meses, em ordem de lançamento."
+        },
+        new CatalogSection
+        {
+            Feed = CatalogFeed.Latest,
+            Title = "Últimos lançamentos",
+            Subtitle = "Jogos lançados recentemente para você não perder nenhuma novidade."
+        }
+    ];
     public ObservableCollection<ListMembershipOption> MembershipOptions { get; } = [];
 
     public string SelectedListTitle
@@ -171,7 +200,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private async void DiscoverButton_Click(object sender, RoutedEventArgs e)
     {
         ShowDiscoverView();
-        if (_settings.HasAnyProvider && RecommendedGames.Count == 0 && LatestGames.Count == 0)
+        if (_settings.HasAnyProvider && CatalogSections.All(section => section.Games.Count == 0))
         {
             await LoadDiscoveryAsync(reset: true);
         }
@@ -475,17 +504,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private async void DiscoveryScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
-    {
-        if (e.ExtentHeight <= 0 ||
-            e.VerticalOffset < e.ExtentHeight - e.ViewportHeight - 500)
-        {
-            return;
-        }
-
-        await LoadDiscoveryAsync(reset: false);
-    }
-
     private async Task LoadDiscoveryAsync(bool reset)
     {
         ConfigureCatalogState();
@@ -499,13 +517,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _catalogCancellation?.Cancel();
             _catalogCancellation?.Dispose();
             _catalogCancellation = new CancellationTokenSource();
-            RecommendedGames.Clear();
-            LatestGames.Clear();
-            _nextLatestPage = 1;
-            _hasMoreLatest = true;
+            foreach (var section in CatalogSections)
+            {
+                section.Clear();
+            }
         }
 
-        if (_isCatalogLoading || !_hasMoreLatest)
+        if (_isCatalogLoading || !reset)
         {
             return;
         }
@@ -516,24 +534,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         try
         {
-            if (reset)
-            {
-                var recommended = await _gameApi.GetCatalogAsync(
-                    CatalogFeed.Recommended,
-                    1,
-                    _settings,
-                    cancellationToken);
-                AddUniqueGames(RecommendedGames, recommended.Results);
-            }
+            var firstSection = CatalogSections[0];
+            await LoadCatalogSectionAsync(firstSection, cancellationToken);
 
-            var latest = await _gameApi.GetCatalogAsync(
-                CatalogFeed.Latest,
-                _nextLatestPage,
-                _settings,
-                cancellationToken);
-            AddUniqueGames(LatestGames, latest.Results);
-            _hasMoreLatest = latest.HasMore;
-            _nextLatestPage++;
+            var remainingTasks = CatalogSections
+                .Skip(1)
+                .Select(section => LoadCatalogSectionAsync(section, cancellationToken));
+            await Task.WhenAll(remainingTasks);
+
+            if (CatalogSections.All(section => section.Games.Count == 0))
+            {
+                DiscoveryUnavailableTitle.Text = "Catálogo temporariamente indisponível";
+                DiscoveryUnavailableMessage.Text =
+                    "As fontes configuradas não retornaram jogos agora. Verifique as credenciais ou tente novamente mais tarde.";
+                DiscoveryContent.Visibility = Visibility.Collapsed;
+                DiscoveryUnavailableState.Visibility = Visibility.Visible;
+            }
         }
         catch (OperationCanceledException)
         {
@@ -542,8 +558,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         catch (Exception ex)
         {
             ShowToast($"Não foi possível carregar o catálogo: {ex.Message}");
-            if (RecommendedGames.Count == 0 && LatestGames.Count == 0)
+            if (CatalogSections.All(section => section.Games.Count == 0))
             {
+                DiscoveryUnavailableTitle.Text = "Catálogo temporariamente indisponível";
+                DiscoveryUnavailableMessage.Text = ex.Message;
                 DiscoveryContent.Visibility = Visibility.Collapsed;
                 DiscoveryUnavailableState.Visibility = Visibility.Visible;
             }
@@ -555,20 +573,49 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private static void AddUniqueGames(
-        ObservableCollection<GameSearchResult> destination,
-        IEnumerable<GameSearchResult> games)
+    private async Task LoadCatalogSectionAsync(
+        CatalogSection section,
+        CancellationToken cancellationToken)
     {
-        var existing = destination
-            .Select(game => $"{game.Source}:{game.ExternalId}")
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var game in games)
+        try
         {
-            if (existing.Add($"{game.Source}:{game.ExternalId}"))
-            {
-                destination.Add(game);
-            }
+            var page = await _gameApi.GetCatalogAsync(
+                section.Feed,
+                1,
+                _settings,
+                cancellationToken);
+            section.ReplaceGames(page.Results);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            section.Clear();
+        }
+    }
+
+    private void ScrollCatalogSectionLeft_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not ScrollViewer scrollViewer)
+        {
+            return;
+        }
+
+        scrollViewer.ScrollToHorizontalOffset(
+            Math.Max(0, scrollViewer.HorizontalOffset - scrollViewer.ViewportWidth * 0.85));
+    }
+
+    private void ScrollCatalogSectionRight_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.Tag is not ScrollViewer scrollViewer)
+        {
+            return;
+        }
+
+        scrollViewer.ScrollToHorizontalOffset(
+            scrollViewer.HorizontalOffset + scrollViewer.ViewportWidth * 0.85);
     }
 
     private async void CatalogCard_Click(object sender, RoutedEventArgs e)
@@ -1143,6 +1190,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DiscoveryContent.Visibility = _settings.HasAnyProvider
             ? Visibility.Visible
             : Visibility.Collapsed;
+        DiscoveryUnavailableTitle.Text = "Catálogo online opcional";
+        DiscoveryUnavailableMessage.Text =
+            "Configure IGDB ou RAWG para ver recomendações e lançamentos. Sua biblioteca e o cadastro manual continuam funcionando normalmente.";
         CatalogAttributionText.Text = (_settings.HasIgdb, _settings.HasRawg) switch
         {
             (true, true) => "Dados por IGDB e RAWG",

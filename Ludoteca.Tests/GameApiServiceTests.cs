@@ -261,6 +261,65 @@ public sealed class GameApiServiceTests
         Assert.Equal(1, handler.RawgCalls);
     }
 
+    [Theory]
+    [InlineData(CatalogFeed.Trending, "ordering=-added")]
+    [InlineData(CatalogFeed.MostAnticipated, "ordering=-added")]
+    [InlineData(CatalogFeed.Upcoming, "ordering=released")]
+    [InlineData(CatalogFeed.Latest, "ordering=-released")]
+    public async Task RawgCatalogUsesExpectedOrdering(
+        CatalogFeed feed,
+        string expectedOrdering)
+    {
+        var handler = new StubHttpMessageHandler(request =>
+            request.RequestUri?.Host == "api.rawg.io"
+                ? Json("""{"results":[]}""")
+                : new HttpResponseMessage(HttpStatusCode.NotFound));
+
+        using var service = new GameApiService(handler);
+        await service.GetCatalogAsync(
+            feed,
+            1,
+            new AppSettings { RawgApiKey = "rawg" },
+            CancellationToken.None);
+
+        Assert.Contains(expectedOrdering, handler.LastRawgUri?.Query);
+    }
+
+    [Theory]
+    [InlineData(CatalogFeed.Trending, "sort total_rating_count desc")]
+    [InlineData(CatalogFeed.MostAnticipated, "hypes != null")]
+    [InlineData(CatalogFeed.Upcoming, "sort first_release_date asc")]
+    [InlineData(CatalogFeed.Latest, "sort first_release_date desc")]
+    public async Task IgdbCatalogUsesExpectedFeedFilter(
+        CatalogFeed feed,
+        string expectedQueryFragment)
+    {
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            if (request.RequestUri?.Host == "id.twitch.tv")
+            {
+                return Json("""{"access_token":"token","expires_in":3600}""");
+            }
+
+            return request.RequestUri?.Host == "api.igdb.com"
+                ? Json("[]")
+                : new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var service = new GameApiService(handler);
+        await service.GetCatalogAsync(
+            feed,
+            1,
+            new AppSettings
+            {
+                IgdbClientId = "client",
+                IgdbClientSecret = "secret"
+            },
+            CancellationToken.None);
+
+        Assert.Contains(expectedQueryFragment, handler.LastIgdbBody);
+    }
+
     private static AppSettings CompleteSettings()
     {
         return new AppSettings
@@ -286,6 +345,7 @@ public sealed class GameApiServiceTests
         public int IgdbCalls { get; private set; }
         public int TwitchCalls { get; private set; }
         public Uri? LastRawgUri { get; private set; }
+        public string? LastIgdbBody { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -299,6 +359,10 @@ public sealed class GameApiServiceTests
             else if (request.RequestUri?.Host == "api.igdb.com")
             {
                 IgdbCalls++;
+                LastIgdbBody = request.Content?
+                    .ReadAsStringAsync(cancellationToken)
+                    .GetAwaiter()
+                    .GetResult();
             }
             else if (request.RequestUri?.Host == "id.twitch.tv")
             {

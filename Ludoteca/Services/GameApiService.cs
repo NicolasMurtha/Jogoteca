@@ -312,26 +312,40 @@ public sealed class GameApiService : IDisposable
         request.Headers.Add("Client-ID", settings.IgdbClientId);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var nowDate = DateTimeOffset.UtcNow;
+        var now = nowDate.ToUnixTimeSeconds();
+        var recent = nowDate.AddMonths(-18).ToUnixTimeSeconds();
+        var sixMonthsAhead = nowDate.AddMonths(6).ToUnixTimeSeconds();
         var limit = PageSize(feed);
         var offset = Math.Max(0, page - 1) * limit;
-        var body = feed == CatalogFeed.Recommended
-            ? $"""
-               fields id,name,summary,first_release_date,genres.name,cover.image_id,rating,rating_count;
-               where version_parent = null & cover != null & first_release_date != null &
-                     first_release_date <= {now} & rating_count > 20;
-               sort rating desc;
-               limit {limit};
-               offset {offset};
-               """
-            : $"""
-               fields id,name,summary,first_release_date,genres.name,cover.image_id,rating,rating_count;
-               where version_parent = null & cover != null & first_release_date != null &
-                     first_release_date <= {now};
-               sort first_release_date desc;
-               limit {limit};
-               offset {offset};
-               """;
+        var body = feed switch
+        {
+            CatalogFeed.Recommended => BuildIgdbCatalogQuery(
+                $"first_release_date <= {now} & total_rating_count > 100",
+                "rating desc",
+                limit,
+                offset),
+            CatalogFeed.Trending => BuildIgdbCatalogQuery(
+                $"first_release_date >= {recent} & first_release_date <= {now} & total_rating_count > 5",
+                "total_rating_count desc",
+                limit,
+                offset),
+            CatalogFeed.MostAnticipated => BuildIgdbCatalogQuery(
+                $"first_release_date > {now} & hypes != null",
+                "hypes desc",
+                limit,
+                offset),
+            CatalogFeed.Upcoming => BuildIgdbCatalogQuery(
+                $"first_release_date > {now} & first_release_date <= {sixMonthsAhead}",
+                "first_release_date asc",
+                limit,
+                offset),
+            _ => BuildIgdbCatalogQuery(
+                $"first_release_date >= {recent} & first_release_date <= {now}",
+                "first_release_date desc",
+                limit,
+                offset)
+        };
         request.Content = new StringContent(body, Encoding.UTF8, "text/plain");
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
@@ -415,14 +429,27 @@ public sealed class GameApiService : IDisposable
         AppSettings settings,
         CancellationToken cancellationToken)
     {
-        var today = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-        var ordering = feed == CatalogFeed.Recommended ? "-rating" : "-released";
+        var todayDate = DateTime.UtcNow.Date;
+        var today = todayDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var tomorrow = todayDate.AddDays(1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var recent = todayDate.AddMonths(-18).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var sixMonthsAhead = todayDate.AddMonths(6).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var twoYearsAhead = todayDate.AddYears(2).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var (ordering, dates) = feed switch
+        {
+            CatalogFeed.Recommended => ("-rating", $"2020-01-01,{today}"),
+            CatalogFeed.Trending => ("-added", $"{recent},{today}"),
+            CatalogFeed.MostAnticipated => ("-added", $"{tomorrow},{twoYearsAhead}"),
+            CatalogFeed.Upcoming => ("released", $"{tomorrow},{sixMonthsAhead}"),
+            _ => ("-released", $"{recent},{today}")
+        };
         var pageSize = PageSize(feed);
         var url =
             "https://api.rawg.io/api/games" +
             $"?key={Uri.EscapeDataString(settings.RawgApiKey)}" +
             $"&ordering={Uri.EscapeDataString(ordering)}" +
-            $"&dates=1950-01-01,{today}" +
+            $"&dates={Uri.EscapeDataString(dates)}" +
+            "&exclude_additions=true" +
             $"&page={Math.Max(1, page)}" +
             $"&page_size={pageSize}";
         using var response = await _httpClient.GetAsync(url, cancellationToken);
@@ -477,7 +504,24 @@ public sealed class GameApiService : IDisposable
 
     private static int PageSize(CatalogFeed feed)
     {
-        return feed == CatalogFeed.Recommended ? 12 : 30;
+        return 20;
+    }
+
+    private static string BuildIgdbCatalogQuery(
+        string feedFilter,
+        string sort,
+        int limit,
+        int offset)
+    {
+        return $"""
+                fields id,name,summary,first_release_date,genres.name,cover.image_id,
+                       rating,rating_count,total_rating_count,hypes;
+                where version_parent = null & cover != null & first_release_date != null &
+                      {feedFilter};
+                sort {sort};
+                limit {limit};
+                offset {offset};
+                """;
     }
 
     private static IReadOnlyList<GameSearchResult> ParseIgdbGames(JsonElement items)

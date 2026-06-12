@@ -49,6 +49,54 @@
             <Setter Property="Height" Value="38" />
             <Setter Property="Margin" Value="0,0,9,0" />
         </Style>
+
+        <DataTemplate x:Key="DiscoveryGameCardTemplate">
+            <Button Style="{StaticResource CardButton}"
+                    Width="168"
+                    Height="270"
+                    Margin="0,0,12,5"
+                    Click="CatalogCard_Click">
+                <Border Background="{StaticResource Surface}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="14">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="200" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Border Background="#DDD9D3"
+                                CornerRadius="13,13,0,0"
+                                ClipToBounds="True">
+                            <Grid>
+                                <TextBlock FontFamily="Segoe Fluent Icons"
+                                           Text="&#xE7FC;"
+                                           FontSize="34"
+                                           Foreground="#AAA6A0"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                                <Border CornerRadius="13,13,0,0">
+                                    <Border.Background>
+                                        <ImageBrush ImageSource="{Binding CoverDisplay}"
+                                                    Stretch="UniformToFill" />
+                                    </Border.Background>
+                                </Border>
+                            </Grid>
+                        </Border>
+                        <StackPanel Grid.Row="1" Margin="11,9">
+                            <TextBlock Text="{Binding Name}"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding YearDisplay}"
+                                       Margin="0,4,0,0"
+                                       FontSize="11"
+                                       Foreground="{StaticResource TextSecondary}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Button>
+        </DataTemplate>
     </Window.Resources>
 
     <Grid x:Name="RootGrid">
@@ -78,7 +126,7 @@
                             Padding="7,2"
                             Background="#E7E1F7"
                             CornerRadius="8">
-                        <TextBlock Text="1.2"
+                        <TextBlock Text="1.2.1"
                                    FontSize="10"
                                    FontWeight="Bold"
                                    Foreground="#66568E" />
@@ -295,8 +343,7 @@
                 <Grid x:Name="DiscoveryPanel">
                     <ScrollViewer x:Name="DiscoveryScrollViewer"
                                   VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled"
-                                  ScrollChanged="DiscoveryScrollViewer_ScrollChanged">
+                                  HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Margin="34,28,28,36">
                             <Grid>
                                 <StackPanel>
@@ -331,10 +378,12 @@
                                     Visibility="Collapsed">
                                 <Grid>
                                     <StackPanel Margin="0,0,190,0">
-                                        <TextBlock Text="Catálogo online opcional"
+                                        <TextBlock x:Name="DiscoveryUnavailableTitle"
+                                                   Text="Catálogo online opcional"
                                                    FontSize="18"
                                                    FontWeight="SemiBold" />
-                                        <TextBlock Text="Configure IGDB ou RAWG para ver recomendações e lançamentos. Sua biblioteca e o cadastro manual continuam funcionando normalmente."
+                                        <TextBlock x:Name="DiscoveryUnavailableMessage"
+                                                   Text="Configure IGDB ou RAWG para ver recomendações e lançamentos. Sua biblioteca e o cadastro manual continuam funcionando normalmente."
                                                    Margin="0,7,0,0"
                                                    Foreground="{StaticResource TextSecondary}"
                                                    TextWrapping="Wrap"
@@ -349,153 +398,78 @@
                             </Border>
 
                             <StackPanel x:Name="DiscoveryContent">
-                                <Grid Margin="0,30,6,14">
-                                    <StackPanel>
-                                        <TextBlock Text="Recomendados para você"
-                                                   FontSize="20"
-                                                   FontWeight="SemiBold" />
-                                        <TextBlock Text="Jogos bem avaliados para explorar e adicionar à biblioteca."
-                                                   Margin="0,4,0,0"
-                                                   Foreground="{StaticResource TextSecondary}"
-                                                   FontSize="12" />
-                                    </StackPanel>
-                                    <TextBlock HorizontalAlignment="Right"
-                                               VerticalAlignment="Bottom"
-                                               Text="Clique em um jogo para ver os detalhes"
-                                               Foreground="{StaticResource TextSecondary}"
-                                               FontSize="11" />
-                                </Grid>
+                                <TextBlock Margin="0,22,6,0"
+                                           HorizontalAlignment="Right"
+                                           Text="Role a página para baixo e cada faixa para o lado"
+                                           Foreground="{StaticResource TextSecondary}"
+                                           FontSize="11" />
 
-                                <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                                              VerticalScrollBarVisibility="Disabled"
-                                              Margin="0,0,6,0">
-                                    <ItemsControl ItemsSource="{Binding RecommendedGames}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Horizontal" />
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Button Style="{StaticResource CardButton}"
-                                                        Width="176"
-                                                        Height="286"
-                                                        Margin="0,0,14,10"
-                                                        Click="CatalogCard_Click">
-                                                    <Border Background="{StaticResource Surface}"
-                                                            BorderBrush="{StaticResource BorderBrush}"
-                                                            BorderThickness="1"
-                                                            CornerRadius="14">
-                                                        <Grid>
-                                                            <Grid.RowDefinitions>
-                                                                <RowDefinition Height="210" />
-                                                                <RowDefinition Height="*" />
-                                                            </Grid.RowDefinitions>
-                                                            <Border Background="#DDD9D3"
-                                                                    CornerRadius="13,13,0,0"
-                                                                    ClipToBounds="True">
-                                                                <Grid>
-                                                                    <TextBlock FontFamily="Segoe Fluent Icons"
-                                                                               Text="&#xE7FC;"
-                                                                               FontSize="34"
-                                                                               Foreground="#AAA6A0"
-                                                                               HorizontalAlignment="Center"
-                                                                               VerticalAlignment="Center" />
-                                                                    <Border CornerRadius="13,13,0,0">
-                                                                        <Border.Background>
-                                                                            <ImageBrush ImageSource="{Binding CoverDisplay}"
-                                                                                        Stretch="UniformToFill" />
-                                                                        </Border.Background>
-                                                                    </Border>
-                                                                </Grid>
-                                                            </Border>
-                                                            <StackPanel Grid.Row="1" Margin="12,10">
-                                                                <TextBlock Text="{Binding Name}"
-                                                                           FontSize="13"
-                                                                           FontWeight="SemiBold"
-                                                                           TextTrimming="CharacterEllipsis" />
-                                                                <TextBlock Text="{Binding YearDisplay}"
-                                                                           Margin="0,5,0,0"
-                                                                           FontSize="11"
-                                                                           Foreground="{StaticResource TextSecondary}" />
-                                                            </StackPanel>
-                                                        </Grid>
-                                                    </Border>
-                                                </Button>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-
-                                <StackPanel Margin="0,30,0,0">
-                                    <TextBlock Text="Últimos lançamentos"
-                                               FontSize="20"
-                                               FontWeight="SemiBold" />
-                                    <TextBlock Text="Continue rolando para carregar mais jogos."
-                                               Margin="0,4,0,14"
-                                               Foreground="{StaticResource TextSecondary}"
-                                               FontSize="12" />
-                                </StackPanel>
-
-                                <ItemsControl ItemsSource="{Binding LatestGames}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <WrapPanel />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
+                                <ItemsControl ItemsSource="{Binding CatalogSections}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Button Style="{StaticResource CardButton}"
-                                                    Width="176"
-                                                    Height="286"
-                                                    Margin="0,0,14,18"
-                                                    Click="CatalogCard_Click">
-                                                <Border Background="{StaticResource Surface}"
-                                                        BorderBrush="{StaticResource BorderBrush}"
-                                                        BorderThickness="1"
-                                                        CornerRadius="14">
-                                                    <Grid>
-                                                        <Grid.RowDefinitions>
-                                                            <RowDefinition Height="210" />
-                                                            <RowDefinition Height="*" />
-                                                        </Grid.RowDefinitions>
-                                                        <Border Background="#DDD9D3"
-                                                                CornerRadius="13,13,0,0"
-                                                                ClipToBounds="True">
-                                                            <Grid>
-                                                                <TextBlock FontFamily="Segoe Fluent Icons"
-                                                                           Text="&#xE7FC;"
-                                                                           FontSize="34"
-                                                                           Foreground="#AAA6A0"
-                                                                           HorizontalAlignment="Center"
-                                                                           VerticalAlignment="Center" />
-                                                                <Border CornerRadius="13,13,0,0">
-                                                                    <Border.Background>
-                                                                        <ImageBrush ImageSource="{Binding CoverDisplay}"
-                                                                                    Stretch="UniformToFill" />
-                                                                    </Border.Background>
-                                                                </Border>
-                                                            </Grid>
-                                                        </Border>
-                                                        <StackPanel Grid.Row="1" Margin="12,10">
-                                                            <TextBlock Text="{Binding Name}"
-                                                                       FontSize="13"
-                                                                       FontWeight="SemiBold"
-                                                                       TextTrimming="CharacterEllipsis" />
-                                                            <TextBlock Text="{Binding YearDisplay}"
-                                                                       Margin="0,5,0,0"
-                                                                       FontSize="11"
-                                                                       Foreground="{StaticResource TextSecondary}" />
-                                                        </StackPanel>
-                                                    </Grid>
-                                                </Border>
-                                            </Button>
+                                            <StackPanel Margin="0,24,0,0"
+                                                        Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibility}}">
+                                                <StackPanel Margin="0,0,6,11">
+                                                    <TextBlock Text="{Binding Title}"
+                                                               FontSize="20"
+                                                               FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding Subtitle}"
+                                                               Margin="0,4,0,0"
+                                                               Foreground="{StaticResource TextSecondary}"
+                                                               FontSize="12" />
+                                                </StackPanel>
+
+                                                <Grid Margin="0,0,6,0">
+                                                    <ScrollViewer x:Name="SectionScrollViewer"
+                                                                  HorizontalScrollBarVisibility="Hidden"
+                                                                  VerticalScrollBarVisibility="Disabled"
+                                                                  PanningMode="HorizontalOnly">
+                                                        <ItemsControl ItemsSource="{Binding Games}"
+                                                                      ItemTemplate="{StaticResource DiscoveryGameCardTemplate}">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <StackPanel Orientation="Horizontal" />
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                        </ItemsControl>
+                                                    </ScrollViewer>
+
+                                                    <Button Style="{StaticResource IconButton}"
+                                                            Width="38"
+                                                            Height="76"
+                                                            Margin="4,0,0,0"
+                                                            HorizontalAlignment="Left"
+                                                            VerticalAlignment="Center"
+                                                            Background="#DDFBFAF8"
+                                                            Tag="{Binding ElementName=SectionScrollViewer}"
+                                                            Click="ScrollCatalogSectionLeft_Click"
+                                                            Panel.ZIndex="2">
+                                                        <TextBlock FontFamily="Segoe Fluent Icons"
+                                                                   Text="&#xE76B;"
+                                                                   FontSize="17" />
+                                                    </Button>
+                                                    <Button Style="{StaticResource IconButton}"
+                                                            Width="38"
+                                                            Height="76"
+                                                            Margin="0,0,4,0"
+                                                            HorizontalAlignment="Right"
+                                                            VerticalAlignment="Center"
+                                                            Background="#DDFBFAF8"
+                                                            Tag="{Binding ElementName=SectionScrollViewer}"
+                                                            Click="ScrollCatalogSectionRight_Click"
+                                                            Panel.ZIndex="2">
+                                                        <TextBlock FontFamily="Segoe Fluent Icons"
+                                                                   Text="&#xE76C;"
+                                                                   FontSize="17" />
+                                                    </Button>
+                                                </Grid>
+                                            </StackPanel>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
 
                                 <StackPanel x:Name="DiscoveryLoadingState"
-                                            Margin="0,8,0,12"
+                                            Margin="0,34,0,24"
                                             Visibility="Collapsed">
                                     <ProgressBar Width="190"
                                                  Height="5"

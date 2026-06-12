@@ -6,8 +6,8 @@ automático para o RAWG.
 
 ## Recursos
 
-- Tela inicial de descoberta com recomendações e últimos lançamentos.
-- Rolagem contínua para carregar mais jogos do catálogo.
+- Tela Descobrir em formato de streaming, com faixas horizontais empilhadas.
+- Seções Para você, Trending games, Mais aguardados, Próximos lançamentos e Últimos lançamentos.
 - Biblioteca independente: todo jogo adicionado entra primeiro nela.
 - Organização por drag-and-drop dos cards para as listas.
 - Criação, edição e exclusão de listas com nome, emoji e cor.

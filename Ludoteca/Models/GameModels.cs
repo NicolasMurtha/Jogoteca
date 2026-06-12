@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 
@@ -199,6 +200,9 @@ public sealed class GameSearchResponse
 public enum CatalogFeed
 {
     Recommended,
+    Trending,
+    MostAnticipated,
+    Upcoming,
     Latest
 }
 
@@ -207,4 +211,41 @@ public sealed class CatalogPage
     public IReadOnlyList<GameSearchResult> Results { get; init; } = [];
     public bool HasMore { get; init; }
     public string Message { get; init; } = string.Empty;
+}
+
+public sealed class CatalogSection : ObservableModel
+{
+    private bool _isVisible;
+
+    public required CatalogFeed Feed { get; init; }
+    public required string Title { get; init; }
+    public required string Subtitle { get; init; }
+    public ObservableCollection<GameSearchResult> Games { get; } = [];
+
+    public bool IsVisible
+    {
+        get => _isVisible;
+        private set => SetField(ref _isVisible, value);
+    }
+
+    public void ReplaceGames(IEnumerable<GameSearchResult> games)
+    {
+        Games.Clear();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var game in games)
+        {
+            if (seen.Add($"{game.Source}:{game.ExternalId}"))
+            {
+                Games.Add(game);
+            }
+        }
+
+        IsVisible = Games.Count > 0;
+    }
+
+    public void Clear()
+    {
+        Games.Clear();
+        IsVisible = false;
+    }
 }

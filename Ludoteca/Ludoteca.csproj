@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon>Assets\Ludoteca.ico</ApplicationIcon>
+    <AssemblyName>Ludoteca</AssemblyName>
+    <RootNamespace>Ludoteca</RootNamespace>
+    <Version>1.1.0</Version>
+    <Authors>Ludoteca</Authors>
+    <Product>Ludoteca - Backlog pessoal de jogos</Product>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\Ludoteca.png" />
+    <Resource Include="Assets\LudotecaMark.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.19" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+
+</Project>

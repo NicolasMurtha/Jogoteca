@@ -1,0 +1,1197 @@
+<Window x:Class="Ludoteca.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Ludoteca"
+        Width="1360"
+        Height="840"
+        MinWidth="1080"
+        MinHeight="680"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        Loaded="Window_Loaded"
+        Closing="Window_Closing">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0"
+                            CornerRadius="0"
+                            GlassFrameThickness="0"
+                            ResizeBorderThickness="6"
+                            UseAeroCaptionButtons="False" />
+    </shell:WindowChrome.WindowChrome>
+
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="44" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Background="#F7F6F4"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="0,0,0,1"
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid>
+                <StackPanel Orientation="Horizontal"
+                            Margin="15,0"
+                            VerticalAlignment="Center">
+                    <Image Source="/Assets/LudotecaMark.png"
+                           Width="24"
+                           Height="24"
+                           Stretch="UniformToFill" />
+                    <TextBlock Text="Ludoteca"
+                               Margin="9,0,0,0"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Right">
+                    <Button Style="{StaticResource IconButton}"
+                            Width="46"
+                            Height="43"
+                            Click="MinimizeButton_Click"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                        <TextBlock FontFamily="Segoe Fluent Icons"
+                                   Text="&#xE921;"
+                                   FontSize="11" />
+                    </Button>
+                    <Button Style="{StaticResource IconButton}"
+                            Width="46"
+                            Height="43"
+                            Click="MaximizeButton_Click"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                        <TextBlock x:Name="MaximizeIcon"
+                                   FontFamily="Segoe Fluent Icons"
+                                   Text="&#xE922;"
+                                   FontSize="11" />
+                    </Button>
+                    <Button Style="{StaticResource IconButton}"
+                            Width="46"
+                            Height="43"
+                            Click="CloseButton_Click"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                        <TextBlock FontFamily="Segoe Fluent Icons"
+                                   Text="&#xE8BB;"
+                                   FontSize="12" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="255" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0"
+                    Background="{StaticResource SidebarBackground}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="0,0,1,0">
+                <Grid Margin="15,18,15,16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Margin="6,2,6,20">
+                        <TextBlock Text="MEU BACKLOG"
+                                   FontSize="10"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource TextSecondary}" />
+                        <TextBlock Text="Tudo que quero jogar,"
+                                   Margin="0,7,0,0"
+                                   FontSize="13"
+                                   Foreground="{StaticResource TextSecondary}" />
+                        <TextBlock Text="num lugar só."
+                                   FontSize="13"
+                                   Foreground="{StaticResource TextSecondary}" />
+                    </StackPanel>
+
+                    <Button x:Name="AllGamesButton"
+                            Grid.Row="1"
+                            Style="{StaticResource NavButton}"
+                            Background="#D7D2E8"
+                            Click="AllGamesButton_Click">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="28" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock FontFamily="Segoe Fluent Icons"
+                                       Text="&#xE8F1;"
+                                       FontSize="16"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1"
+                                       Text="Todos os jogos"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                            <Border Grid.Column="2"
+                                    Background="#C4B8E9"
+                                    Padding="7,2"
+                                    CornerRadius="9">
+                                <TextBlock Text="{Binding TotalGameCount}"
+                                           FontSize="11"
+                                           FontWeight="SemiBold" />
+                            </Border>
+                        </Grid>
+                    </Button>
+
+                    <Grid Grid.Row="2" Margin="0,22,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid Margin="7,0,5,9">
+                            <TextBlock Text="LISTAS"
+                                       FontSize="10"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       VerticalAlignment="Center" />
+                            <Button Style="{StaticResource IconButton}"
+                                    Width="27"
+                                    Height="27"
+                                    HorizontalAlignment="Right"
+                                    Click="OpenCreateList_Click"
+                                    ToolTip="Criar lista">
+                                <TextBlock FontFamily="Segoe Fluent Icons"
+                                           Text="&#xE710;"
+                                           FontSize="12" />
+                            </Button>
+                        </Grid>
+
+                        <ScrollViewer Grid.Row="1"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <ItemsControl ItemsSource="{Binding Lists}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Style="{StaticResource NavButton}"
+                                                Margin="0,2"
+                                                Click="ListButton_Click">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="28" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Ellipse Width="10"
+                                                         Height="10"
+                                                         HorizontalAlignment="Left"
+                                                         Fill="{Binding Color}" />
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding Name}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="2"
+                                                           Text="{Binding CountDisplay}"
+                                                           FontSize="11"
+                                                           Foreground="{StaticResource TextSecondary}"
+                                                           VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <Button Grid.Row="3"
+                            Style="{StaticResource NavButton}"
+                            Click="OpenSettings_Click">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="28" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock FontFamily="Segoe Fluent Icons"
+                                       Text="&#xE713;"
+                                       FontSize="16" />
+                            <TextBlock Grid.Column="1"
+                                       Text="Configurações"
+                                       FontWeight="SemiBold" />
+                        </Grid>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Grid Margin="34,28,34,18">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding SelectedListTitle}"
+                                       FontSize="29"
+                                       FontWeight="SemiBold" />
+                            <Button x:Name="DeleteCurrentListButton"
+                                    Style="{StaticResource IconButton}"
+                                    Margin="8,0,0,0"
+                                    Width="32"
+                                    Height="32"
+                                    Visibility="Collapsed"
+                                    Click="DeleteCurrentList_Click"
+                                    ToolTip="Excluir esta lista">
+                                <TextBlock FontFamily="Segoe Fluent Icons"
+                                           Text="&#xE74D;"
+                                           FontSize="14"
+                                           Foreground="#9A5555" />
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Text="{Binding SelectedListSubtitle}"
+                                   Margin="0,5,0,0"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   FontSize="13" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1"
+                                Orientation="Horizontal"
+                                VerticalAlignment="Center">
+                        <Grid Width="290" Height="43">
+                            <TextBox x:Name="OnlineSearchBox"
+                                     Style="{StaticResource TextInput}"
+                                     TextChanged="OnlineSearchBox_TextChanged"
+                                     KeyDown="OnlineSearchBox_KeyDown"
+                                     ToolTip="Busque online ou cadastre manualmente" />
+                            <TextBlock x:Name="OnlineSearchPlaceholder"
+                                       Text="Buscar novos jogos..."
+                                       Margin="14,0"
+                                       Foreground="#9A969E"
+                                       VerticalAlignment="Center"
+                                       IsHitTestVisible="False" />
+                        </Grid>
+                        <Button Style="{StaticResource PrimaryButton}"
+                                Margin="9,0,0,0"
+                                Padding="16,10"
+                                Click="SearchOnline_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock FontFamily="Segoe Fluent Icons"
+                                           Text="&#xE710;"
+                                           Margin="0,0,8,0" />
+                                <TextBlock Text="Adicionar jogo" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <Grid Grid.Row="1" Margin="34,0,34,20">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Background="#E7E1F7"
+                            CornerRadius="16"
+                            Padding="18,15"
+                            Margin="0,0,10,0">
+                        <Grid>
+                            <StackPanel>
+                                <TextBlock Text="NA BIBLIOTECA"
+                                           FontSize="10"
+                                           FontWeight="Bold"
+                                           Foreground="#746991" />
+                                <TextBlock Text="{Binding TotalGameCount}"
+                                           Margin="0,5,0,0"
+                                           FontSize="24"
+                                           FontWeight="SemiBold" />
+                            </StackPanel>
+                            <TextBlock FontFamily="Segoe Fluent Icons"
+                                       Text="&#xE8F1;"
+                                       FontSize="22"
+                                       Foreground="#8D7CBE"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Column="1"
+                            Background="#DDEEE7"
+                            CornerRadius="16"
+                            Padding="18,15"
+                            Margin="5,0">
+                        <Grid>
+                            <StackPanel>
+                                <TextBlock Text="MÉDIA DAS NOTAS"
+                                           FontSize="10"
+                                           FontWeight="Bold"
+                                           Foreground="#56796D" />
+                                <TextBlock Text="{Binding AverageRating}"
+                                           Margin="0,5,0,0"
+                                           FontSize="24"
+                                           FontWeight="SemiBold" />
+                            </StackPanel>
+                            <TextBlock FontFamily="Segoe Fluent Icons"
+                                       Text="&#xE735;"
+                                       FontSize="22"
+                                       Foreground="#6A9C8B"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Column="2"
+                            Background="#F6E2DA"
+                            CornerRadius="16"
+                            Padding="18,15"
+                            Margin="10,0,0,0">
+                        <Grid>
+                            <StackPanel>
+                                <TextBlock Text="REVIEWS ESCRITAS"
+                                           FontSize="10"
+                                           FontWeight="Bold"
+                                           Foreground="#956E5E" />
+                                <TextBlock Text="{Binding ReviewedGameCount}"
+                                           Margin="0,5,0,0"
+                                           FontSize="24"
+                                           FontWeight="SemiBold" />
+                            </StackPanel>
+                            <TextBlock FontFamily="Segoe Fluent Icons"
+                                       Text="&#xE70B;"
+                                       FontSize="22"
+                                       Foreground="#B7836E"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <Grid Grid.Row="2">
+                    <Border x:Name="ApiBanner"
+                            Margin="34,0,34,18"
+                            Padding="16"
+                            Background="#FFF3D7"
+                            BorderBrush="#E9D18F"
+                            BorderThickness="1"
+                            CornerRadius="14"
+                            VerticalAlignment="Top"
+                            Visibility="Collapsed"
+                            Panel.ZIndex="2">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock FontFamily="Segoe Fluent Icons"
+                                       Text="&#xE946;"
+                                       FontSize="18"
+                                       Margin="0,0,12,0"
+                                       VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Busca online opcional"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="Cadastre jogos manualmente ou configure IGDB/RAWG para preencher os dados automaticamente."
+                                           Margin="0,3,0,0"
+                                           FontSize="12"
+                                           Foreground="{StaticResource TextSecondary}" />
+                            </StackPanel>
+                            <Button Grid.Column="2"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Padding="13,8"
+                                    Click="OpenSettings_Click"
+                                    Content="Configurar" />
+                        </Grid>
+                    </Border>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Padding="28,0,20,28">
+                        <ItemsControl ItemsSource="{Binding Games}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Width="184"
+                                            Height="315"
+                                            Margin="6,0,10,18"
+                                            Padding="0"
+                                            BorderThickness="0"
+                                            Background="Transparent"
+                                            Cursor="Hand"
+                                            Click="GameCard_Click">
+                                        <Border Background="{StaticResource Surface}"
+                                                BorderBrush="{StaticResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="16">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="225" />
+                                                    <RowDefinition Height="*" />
+                                                </Grid.RowDefinitions>
+                                                <Border Background="#DDD9D3"
+                                                        CornerRadius="15,15,0,0"
+                                                        ClipToBounds="True">
+                                                    <Grid>
+                                                        <TextBlock FontFamily="Segoe Fluent Icons"
+                                                                   Text="&#xE7FC;"
+                                                                   FontSize="35"
+                                                                   Foreground="#AAA6A0"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center" />
+                                                        <Image Source="{Binding CoverDisplay}"
+                                                               Stretch="UniformToFill" />
+                                                    </Grid>
+                                                </Border>
+                                                <Border HorizontalAlignment="Right"
+                                                        VerticalAlignment="Top"
+                                                        Margin="0,10,9,0"
+                                                        Padding="8,4"
+                                                        Background="#EE29282D"
+                                                        CornerRadius="10">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock FontFamily="Segoe Fluent Icons"
+                                                                   Text="&#xE735;"
+                                                                   Foreground="#F0D791"
+                                                                   FontSize="11"
+                                                                   Margin="0,0,4,0" />
+                                                        <TextBlock Text="{Binding RatingDisplay}"
+                                                                   Foreground="White"
+                                                                   FontSize="11"
+                                                                   FontWeight="SemiBold" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <StackPanel Grid.Row="1"
+                                                            Margin="13,11">
+                                                    <TextBlock Text="{Binding Name}"
+                                                               FontWeight="SemiBold"
+                                                               FontSize="14"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Margin="0,5,0,0"
+                                                               Foreground="{StaticResource TextSecondary}"
+                                                               FontSize="11"
+                                                               TextTrimming="CharacterEllipsis">
+                                                        <Run Text="{Binding YearDisplay, Mode=OneWay}" />
+                                                        <Run Text="  •  " />
+                                                        <Run Text="{Binding CategoryDisplay, Mode=OneWay}" />
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <StackPanel x:Name="EmptyLibraryState"
+                                Width="420"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Visibility="Collapsed">
+                        <Border Width="76"
+                                Height="76"
+                                Background="#E7E1F7"
+                                CornerRadius="22"
+                                HorizontalAlignment="Center">
+                            <TextBlock FontFamily="Segoe Fluent Icons"
+                                       Text="&#xE8F1;"
+                                       FontSize="30"
+                                       Foreground="#8D7CBE"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Text="Sua estante ainda está vazia"
+                                   Margin="0,19,0,0"
+                                   FontSize="19"
+                                   FontWeight="SemiBold"
+                                   TextAlignment="Center" />
+                        <TextBlock Text="Busque um jogo, escolha uma lista e comece a montar seu backlog pessoal."
+                                   Margin="0,8,0,0"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   TextWrapping="Wrap"
+                                   TextAlignment="Center"
+                                   LineHeight="20" />
+                        <Button Style="{StaticResource PrimaryButton}"
+                                Margin="0,18,0,0"
+                                HorizontalAlignment="Center"
+                                Click="FocusSearch_Click"
+                                Content="Adicionar primeiro jogo" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Grid>
+
+        <Grid x:Name="SearchOverlay"
+              Grid.RowSpan="2"
+              Background="#7629282D"
+              Visibility="Collapsed"
+              Panel.ZIndex="20">
+            <Border Width="760"
+                    HorizontalAlignment="Right"
+                    Background="{StaticResource AppBackground}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1,0,0,0">
+                <Grid Margin="28,25">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid>
+                        <StackPanel>
+                            <TextBlock Text="Encontrar um jogo"
+                                       FontSize="26"
+                                       FontWeight="SemiBold" />
+                            <TextBlock x:Name="ProviderDescriptionText"
+                                       Text="Busque online ou cadastre as informações manualmente."
+                                       Margin="0,5,0,0"
+                                       FontSize="13"
+                                       Foreground="{StaticResource TextSecondary}" />
+                        </StackPanel>
+                        <Button Style="{StaticResource IconButton}"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Top"
+                                Click="CloseSearchOverlay_Click">
+                            <TextBlock FontFamily="Segoe Fluent Icons"
+                                       Text="&#xE8BB;"
+                                       FontSize="14" />
+                        </Button>
+                        <Button Style="{StaticResource SecondaryButton}"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Bottom"
+                                Margin="0,0,48,0"
+                                Padding="13,8"
+                                Click="OpenManualGame_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock FontFamily="Segoe Fluent Icons"
+                                           Text="&#xE710;"
+                                           Margin="0,0,7,0" />
+                                <TextBlock Text="Adicionar manualmente" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <Grid x:Name="OnlineSearchPanel"
+                          Grid.Row="1"
+                          Margin="0,22,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="190" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid Height="44">
+                            <TextBox x:Name="OverlaySearchBox"
+                                     Style="{StaticResource TextInput}"
+                                     TextChanged="OverlaySearchBox_TextChanged"
+                                     KeyDown="OverlaySearchBox_KeyDown" />
+                            <TextBlock x:Name="OverlaySearchPlaceholder"
+                                       Text="Nome do jogo..."
+                                       Margin="14,0"
+                                       Foreground="#9A969E"
+                                       VerticalAlignment="Center"
+                                       IsHitTestVisible="False" />
+                        </Grid>
+                        <ComboBox x:Name="TargetListCombo"
+                                  Grid.Column="1"
+                                  Margin="10,0,0,0"
+                                  Padding="10,8"
+                                  ItemsSource="{Binding Lists}"
+                                  DisplayMemberPath="Name"
+                                  SelectedValuePath="Id"
+                                  ToolTip="Lista de destino" />
+                        <Button Grid.Column="2"
+                                Style="{StaticResource PrimaryButton}"
+                                Margin="10,0,0,0"
+                                Padding="16,10"
+                                Click="OverlaySearchButton_Click"
+                                Content="Buscar" />
+                    </Grid>
+
+                    <Grid Grid.Row="2">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding SearchResults}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Margin="0,0,5,12"
+                                                Padding="12"
+                                                Background="{StaticResource Surface}"
+                                                BorderBrush="{StaticResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="15">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="88" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Border Width="78"
+                                                        Height="105"
+                                                        Background="#DDD9D3"
+                                                        CornerRadius="10"
+                                                        ClipToBounds="True">
+                                                    <Grid>
+                                                        <TextBlock FontFamily="Segoe Fluent Icons"
+                                                                   Text="&#xE7FC;"
+                                                                   Foreground="#AAA6A0"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center" />
+                                                        <Image Source="{Binding CoverDisplay}"
+                                                               Stretch="UniformToFill" />
+                                                    </Grid>
+                                                </Border>
+                                                <StackPanel Grid.Column="1"
+                                                            Margin="7,1,16,0">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding Name}"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="15"
+                                                                   MaxWidth="365"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <Border Background="#E7E1F7"
+                                                                Margin="8,0,0,0"
+                                                                Padding="7,2"
+                                                                CornerRadius="8">
+                                                            <TextBlock Text="{Binding SourceDisplay}"
+                                                                       FontSize="9"
+                                                                       FontWeight="Bold" />
+                                                        </Border>
+                                                    </StackPanel>
+                                                    <TextBlock Margin="0,5,0,0"
+                                                               FontSize="11"
+                                                               Foreground="{StaticResource TextSecondary}">
+                                                        <Run Text="{Binding YearDisplay, Mode=OneWay}" />
+                                                        <Run Text="  •  " />
+                                                        <Run Text="{Binding CategoryDisplay, Mode=OneWay}" />
+                                                    </TextBlock>
+                                                    <TextBlock Text="{Binding DescriptionDisplay}"
+                                                               Margin="0,8,0,0"
+                                                               MaxHeight="43"
+                                                               FontSize="12"
+                                                               Foreground="{StaticResource TextSecondary}"
+                                                               TextWrapping="Wrap"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                                <Button Grid.Column="2"
+                                                        Style="{StaticResource SecondaryButton}"
+                                                        Padding="13,8"
+                                                        VerticalAlignment="Center"
+                                                        Click="AddSearchResult_Click"
+                                                        Content="Adicionar" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+
+                        <StackPanel x:Name="SearchEmptyState"
+                                    VerticalAlignment="Center"
+                                    Visibility="Collapsed">
+                            <TextBlock FontFamily="Segoe Fluent Icons"
+                                       Text="&#xE721;"
+                                       FontSize="31"
+                                       Foreground="#A09BA5"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock x:Name="SearchEmptyTitle"
+                                       Text="Busque pelo nome de um jogo"
+                                       Margin="0,13,0,0"
+                                       FontSize="16"
+                                       FontWeight="SemiBold"
+                                       TextAlignment="Center" />
+                            <TextBlock x:Name="SearchEmptyMessage"
+                                       Text="Os resultados aparecerão aqui."
+                                       Margin="0,5,0,0"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       TextAlignment="Center"
+                                       TextWrapping="Wrap" />
+                            <Button Style="{StaticResource SecondaryButton}"
+                                    Margin="0,16,0,0"
+                                    HorizontalAlignment="Center"
+                                    Click="OpenManualGame_Click"
+                                    Content="Cadastrar manualmente" />
+                        </StackPanel>
+
+                        <StackPanel x:Name="SearchLoadingState"
+                                    VerticalAlignment="Center"
+                                    Visibility="Collapsed">
+                            <ProgressBar Width="180"
+                                         Height="5"
+                                         IsIndeterminate="True" />
+                            <TextBlock Text="Consultando as fontes..."
+                                       Margin="0,13,0,0"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       TextAlignment="Center" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="ManualGameOverlay"
+              Grid.RowSpan="2"
+              Background="#7629282D"
+              Visibility="Collapsed"
+              Panel.ZIndex="25">
+            <Border Width="610"
+                    Padding="28"
+                    Background="{StaticResource AppBackground}"
+                    CornerRadius="22"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel>
+                        <Grid>
+                            <StackPanel>
+                                <TextBlock Text="Cadastrar jogo manualmente"
+                                           FontSize="25"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="Apenas o nome e a lista são obrigatórios."
+                                           Margin="0,5,0,0"
+                                           Foreground="{StaticResource TextSecondary}" />
+                            </StackPanel>
+                            <Button Style="{StaticResource IconButton}"
+                                    HorizontalAlignment="Right"
+                                    Click="CloseManualGame_Click">
+                                <TextBlock FontFamily="Segoe Fluent Icons"
+                                           Text="&#xE8BB;"
+                                           FontSize="14" />
+                            </Button>
+                        </Grid>
+
+                        <TextBlock Text="Nome *"
+                                   Margin="0,22,0,6"
+                                   FontSize="11"
+                                   FontWeight="SemiBold" />
+                        <TextBox x:Name="ManualNameBox"
+                                 Style="{StaticResource TextInput}"
+                                 MaxLength="160" />
+
+                        <Grid Margin="0,13,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="150" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,10,0">
+                                <TextBlock Text="Categoria"
+                                           Margin="0,0,0,6"
+                                           FontSize="11"
+                                           FontWeight="SemiBold" />
+                                <TextBox x:Name="ManualCategoryBox"
+                                         Style="{StaticResource TextInput}"
+                                         MaxLength="100" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Ano de lançamento"
+                                           Margin="0,0,0,6"
+                                           FontSize="11"
+                                           FontWeight="SemiBold" />
+                                <TextBox x:Name="ManualYearBox"
+                                         Style="{StaticResource TextInput}"
+                                         MaxLength="4" />
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="Descrição"
+                                   Margin="0,13,0,6"
+                                   FontSize="11"
+                                   FontWeight="SemiBold" />
+                        <TextBox x:Name="ManualDescriptionBox"
+                                 Style="{StaticResource TextInput}"
+                                 Height="90"
+                                 MaxLength="3000"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" />
+
+                        <TextBlock Text="URL da capa"
+                                   Margin="0,13,0,6"
+                                   FontSize="11"
+                                   FontWeight="SemiBold" />
+                        <TextBox x:Name="ManualCoverUrlBox"
+                                 Style="{StaticResource TextInput}"
+                                 MaxLength="1000" />
+
+                        <TextBlock Text="Lista *"
+                                   Margin="0,13,0,6"
+                                   FontSize="11"
+                                   FontWeight="SemiBold" />
+                        <ComboBox x:Name="ManualTargetListCombo"
+                                  Padding="10,8"
+                                  ItemsSource="{Binding Lists}"
+                                  DisplayMemberPath="Name"
+                                  SelectedValuePath="Id" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1"
+                                Orientation="Horizontal"
+                                Margin="0,22,0,0"
+                                HorizontalAlignment="Right">
+                        <Button Style="{StaticResource SecondaryButton}"
+                                Margin="0,0,9,0"
+                                Click="CloseManualGame_Click"
+                                Content="Cancelar" />
+                        <Button Style="{StaticResource PrimaryButton}"
+                                Click="SaveManualGame_Click"
+                                Content="Adicionar jogo" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="DetailOverlay"
+              Grid.RowSpan="2"
+              Background="#7629282D"
+              Visibility="Collapsed"
+              Panel.ZIndex="30">
+            <Border x:Name="DetailPanel"
+                    Width="850"
+                    Height="610"
+                    Padding="26"
+                    Background="{StaticResource AppBackground}"
+                    CornerRadius="22"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="225" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Width="205"
+                                Height="285"
+                                VerticalAlignment="Top"
+                                Background="#DDD9D3"
+                                CornerRadius="15"
+                                ClipToBounds="True">
+                            <Grid>
+                                <TextBlock FontFamily="Segoe Fluent Icons"
+                                           Text="&#xE7FC;"
+                                           FontSize="36"
+                                           Foreground="#AAA6A0"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                                <Image Source="{Binding CoverDisplay}"
+                                       Stretch="UniformToFill" />
+                            </Grid>
+                        </Border>
+
+                        <StackPanel Grid.Column="1">
+                            <Grid>
+                                <StackPanel Margin="0,0,48,0">
+                                    <TextBlock Text="{Binding Name}"
+                                               FontSize="25"
+                                               FontWeight="SemiBold"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Margin="0,6,0,0"
+                                               Foreground="{StaticResource TextSecondary}">
+                                        <Run Text="{Binding YearDisplay, Mode=OneWay}" />
+                                        <Run Text="  •  " />
+                                        <Run Text="{Binding CategoryDisplay, Mode=OneWay}" />
+                                    </TextBlock>
+                                </StackPanel>
+                                <Button Style="{StaticResource IconButton}"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Top"
+                                        Click="CloseDetailOverlay_Click">
+                                    <TextBlock FontFamily="Segoe Fluent Icons"
+                                               Text="&#xE8BB;"
+                                               FontSize="14" />
+                                </Button>
+                            </Grid>
+
+                            <TextBlock Text="SOBRE"
+                                       Margin="0,24,0,7"
+                                       FontSize="10"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource TextSecondary}" />
+                            <TextBlock Text="{Binding Description}"
+                                       Height="76"
+                                       TextWrapping="Wrap"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="{StaticResource TextSecondary}"
+                                       LineHeight="19" />
+
+                            <Grid Margin="0,22,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="220" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="SUA NOTA"
+                                               FontSize="10"
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource TextSecondary}" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
+                                        <Slider x:Name="RatingSlider"
+                                                Width="155"
+                                                Minimum="0"
+                                                Maximum="10"
+                                                TickFrequency="0.5"
+                                                IsSnapToTickEnabled="True"
+                                                ValueChanged="RatingSlider_ValueChanged" />
+                                        <Border Margin="10,0,0,0"
+                                                Width="43"
+                                                Height="30"
+                                                Background="#E7E1F7"
+                                                CornerRadius="10">
+                                            <TextBlock x:Name="RatingValueText"
+                                                       Text="0.0"
+                                                       FontWeight="SemiBold"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                        </Border>
+                                    </StackPanel>
+                                    <CheckBox x:Name="NoRatingCheckBox"
+                                              Content="Ainda sem nota"
+                                              Margin="0,8,0,0"
+                                              Checked="NoRatingCheckBox_Changed"
+                                              Unchecked="NoRatingCheckBox_Changed" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="LISTAS"
+                                               FontSize="10"
+                                               FontWeight="Bold"
+                                               Foreground="{StaticResource TextSecondary}" />
+                                    <ItemsControl ItemsSource="{Binding MembershipOptions}"
+                                                  Margin="0,7,0,0">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding IsSelected}"
+                                                          Margin="0,0,13,7">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Ellipse Width="8"
+                                                                 Height="8"
+                                                                 Margin="0,0,6,0"
+                                                                 Fill="{Binding Color}" />
+                                                        <TextBlock Text="{Binding Name}"
+                                                                   FontSize="12" />
+                                                    </StackPanel>
+                                                </CheckBox>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock Text="SUA REVIEW"
+                                       Margin="0,20,0,7"
+                                       FontSize="10"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource TextSecondary}" />
+                            <TextBox x:Name="ReviewTextBox"
+                                     Style="{StaticResource TextInput}"
+                                     Height="115"
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Grid.Row="1" Margin="0,20,0,0">
+                        <Button Style="{StaticResource DangerButton}"
+                                HorizontalAlignment="Left"
+                                Click="DeleteGame_Click"
+                                Content="Remover da biblioteca" />
+                        <StackPanel Orientation="Horizontal"
+                                    HorizontalAlignment="Right">
+                            <Button Style="{StaticResource SecondaryButton}"
+                                    Margin="0,0,9,0"
+                                    Click="CloseDetailOverlay_Click"
+                                    Content="Cancelar" />
+                            <Button Style="{StaticResource PrimaryButton}"
+                                    Click="SaveGameDetails_Click"
+                                    Content="Salvar alterações" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="SettingsOverlay"
+              Grid.RowSpan="2"
+              Background="#7629282D"
+              Visibility="Collapsed"
+              Panel.ZIndex="40">
+            <Border Width="660"
+                    Padding="28"
+                    Background="{StaticResource AppBackground}"
+                    CornerRadius="22"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel>
+                        <Grid>
+                            <StackPanel>
+                                <TextBlock Text="Configurações das APIs"
+                                           FontSize="25"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="As credenciais ficam criptografadas localmente pelo Windows."
+                                           Margin="0,5,0,0"
+                                           Foreground="{StaticResource TextSecondary}" />
+                            </StackPanel>
+                            <Button Style="{StaticResource IconButton}"
+                                    HorizontalAlignment="Right"
+                                    Click="CloseSettings_Click">
+                                <TextBlock FontFamily="Segoe Fluent Icons"
+                                           Text="&#xE8BB;"
+                                           FontSize="14" />
+                            </Button>
+                        </Grid>
+
+                        <Border Margin="0,23,0,0"
+                                Padding="18"
+                                Background="#E7E1F7"
+                                CornerRadius="15">
+                            <StackPanel>
+                                <Grid>
+                                    <TextBlock Text="IGDB"
+                                               FontSize="16"
+                                               FontWeight="SemiBold" />
+                                    <Button HorizontalAlignment="Right"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Foreground="#66568E"
+                                            Cursor="Hand"
+                                            Click="OpenIgdbDocs_Click"
+                                            Content="Como obter credenciais ↗" />
+                                </Grid>
+                                <TextBlock Text="Client ID"
+                                           Margin="0,14,0,6"
+                                           FontSize="11"
+                                           FontWeight="SemiBold" />
+                                <PasswordBox x:Name="IgdbClientIdBox"
+                                             Style="{StaticResource PasswordInput}" />
+                                <TextBlock Text="Client Secret"
+                                           Margin="0,12,0,6"
+                                           FontSize="11"
+                                           FontWeight="SemiBold" />
+                                <PasswordBox x:Name="IgdbClientSecretBox"
+                                             Style="{StaticResource PasswordInput}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Margin="0,12,0,0"
+                                Padding="18"
+                                Background="#DDEEE7"
+                                CornerRadius="15">
+                            <StackPanel>
+                                <Grid>
+                                    <TextBlock Text="RAWG"
+                                               FontSize="16"
+                                               FontWeight="SemiBold" />
+                                    <Button HorizontalAlignment="Right"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Foreground="#456E60"
+                                            Cursor="Hand"
+                                            Click="OpenRawgDocs_Click"
+                                            Content="Obter uma chave ↗" />
+                                </Grid>
+                                <TextBlock Text="API Key"
+                                           Margin="0,14,0,6"
+                                           FontSize="11"
+                                           FontWeight="SemiBold" />
+                                <PasswordBox x:Name="RawgApiKeyBox"
+                                             Style="{StaticResource PasswordInput}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <Grid Grid.Row="1" Margin="0,20,0,0">
+                        <Button Style="{StaticResource SecondaryButton}"
+                                HorizontalAlignment="Left"
+                                Click="OpenDataFolder_Click"
+                                Content="Abrir pasta dos dados" />
+                        <StackPanel Orientation="Horizontal"
+                                    HorizontalAlignment="Right">
+                            <Button Style="{StaticResource SecondaryButton}"
+                                    Margin="0,0,9,0"
+                                    Click="CloseSettings_Click"
+                                    Content="Cancelar" />
+                            <Button Style="{StaticResource PrimaryButton}"
+                                    Click="SaveSettings_Click"
+                                    Content="Salvar configurações" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="CreateListOverlay"
+              Grid.RowSpan="2"
+              Background="#7629282D"
+              Visibility="Collapsed"
+              Panel.ZIndex="50">
+            <Border Width="430"
+                    Padding="27"
+                    Background="{StaticResource AppBackground}"
+                    CornerRadius="20"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="Criar uma lista"
+                               FontSize="23"
+                               FontWeight="SemiBold" />
+                    <TextBlock Text="Dê um nome que faça sentido para o seu jeito de jogar."
+                               Margin="0,6,0,18"
+                               Foreground="{StaticResource TextSecondary}"
+                               TextWrapping="Wrap" />
+                    <TextBox x:Name="NewListNameBox"
+                             Style="{StaticResource TextInput}"
+                             MaxLength="40"
+                             KeyDown="NewListNameBox_KeyDown" />
+                    <StackPanel Orientation="Horizontal"
+                                Margin="0,20,0,0"
+                                HorizontalAlignment="Right">
+                        <Button Style="{StaticResource SecondaryButton}"
+                                Margin="0,0,9,0"
+                                Click="CloseCreateList_Click"
+                                Content="Cancelar" />
+                        <Button Style="{StaticResource PrimaryButton}"
+                                Click="CreateList_Click"
+                                Content="Criar lista" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Border x:Name="Toast"
+                Grid.RowSpan="2"
+                Margin="0,0,28,26"
+                Padding="15,11"
+                Background="#F329282D"
+                CornerRadius="12"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Bottom"
+                Visibility="Collapsed"
+                Panel.ZIndex="100">
+            <TextBlock x:Name="ToastText"
+                       Foreground="White"
+                       FontSize="13" />
+        </Border>
+    </Grid>
+</Window>

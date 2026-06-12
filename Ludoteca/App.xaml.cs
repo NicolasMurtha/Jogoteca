@@ -24,7 +24,7 @@ public partial class App : Application
 
         _hasShownUnhandledError = true;
         MessageBox.Show(
-            $"A Ludoteca encontrou um erro inesperado.\n\n{e.Exception.Message}",
+            $"A JOGOTECA encontrou um erro inesperado.\n\n{e.Exception.Message}",
             "Erro inesperado",
             MessageBoxButton.OK,
             MessageBoxImage.Error);

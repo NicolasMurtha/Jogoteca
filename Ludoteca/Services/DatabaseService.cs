@@ -10,18 +10,21 @@ public sealed class DatabaseService
 
     public DatabaseService(string? appDataDirectory = null)
     {
-        var environmentDirectory = Environment.GetEnvironmentVariable("LUDOTECA_DATA_DIR");
+        var environmentDirectory =
+            Environment.GetEnvironmentVariable("JOGOTECA_DATA_DIR") ??
+            Environment.GetEnvironmentVariable("LUDOTECA_DATA_DIR");
         AppDataDirectory = appDataDirectory ??
                            (!string.IsNullOrWhiteSpace(environmentDirectory)
                                ? environmentDirectory
-                               : Path.Combine(
-                                   Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                                   "Ludoteca"));
+                               : ResolveDefaultDataDirectory());
         CoversDirectory = Path.Combine(AppDataDirectory, "covers");
         Directory.CreateDirectory(AppDataDirectory);
         Directory.CreateDirectory(CoversDirectory);
 
-        var databasePath = Path.Combine(AppDataDirectory, "ludoteca.db");
+        var legacyDatabasePath = Path.Combine(AppDataDirectory, "ludoteca.db");
+        var databasePath = File.Exists(legacyDatabasePath)
+            ? legacyDatabasePath
+            : Path.Combine(AppDataDirectory, "jogoteca.db");
         _connectionString = new SqliteConnectionStringBuilder
         {
             DataSource = databasePath,
@@ -43,6 +46,7 @@ public sealed class DatabaseService
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,
                 Name TEXT NOT NULL,
                 Color TEXT NOT NULL,
+                Emoji TEXT NOT NULL DEFAULT '🎮',
                 CreatedAt TEXT NOT NULL
             );
 
@@ -81,6 +85,7 @@ public sealed class DatabaseService
             CREATE INDEX IF NOT EXISTS IX_Games_Name ON Games(Name);
             """;
         await command.ExecuteNonQueryAsync();
+        await EnsureListEmojiColumnAsync(connection);
 
         var countCommand = connection.CreateCommand();
         countCommand.CommandText = "SELECT COUNT(*) FROM Lists;";
@@ -98,10 +103,10 @@ public sealed class DatabaseService
         var command = connection.CreateCommand();
         command.CommandText =
             """
-            SELECT l.Id, l.Name, l.Color, COUNT(gl.GameId)
+            SELECT l.Id, l.Name, l.Color, l.Emoji, COUNT(gl.GameId)
             FROM Lists l
             LEFT JOIN GameLists gl ON gl.ListId = l.Id
-            GROUP BY l.Id, l.Name, l.Color
+            GROUP BY l.Id, l.Name, l.Color, l.Emoji
             ORDER BY l.Id;
             """;
 
@@ -113,29 +118,54 @@ public sealed class DatabaseService
                 Id = reader.GetInt32(0),
                 Name = reader.GetString(1),
                 Color = reader.GetString(2),
-                GameCount = reader.GetInt32(3)
+                Emoji = reader.GetString(3),
+                GameCount = reader.GetInt32(4)
             });
         }
 
         return lists;
     }
 
-    public async Task<GameList> CreateListAsync(string name, string color)
+    public async Task<GameList> CreateListAsync(string name, string color, string emoji = "🎮")
     {
         await using var connection = await OpenConnectionAsync();
         var command = connection.CreateCommand();
         command.CommandText =
             """
-            INSERT INTO Lists (Name, Color, CreatedAt)
-            VALUES ($name, $color, $createdAt);
+            INSERT INTO Lists (Name, Color, Emoji, CreatedAt)
+            VALUES ($name, $color, $emoji, $createdAt);
             SELECT last_insert_rowid();
             """;
         command.Parameters.AddWithValue("$name", name.Trim());
         command.Parameters.AddWithValue("$color", color);
+        command.Parameters.AddWithValue("$emoji", NormalizeEmoji(emoji));
         command.Parameters.AddWithValue("$createdAt", DateTimeOffset.UtcNow.ToString("O"));
 
         var id = Convert.ToInt32(await command.ExecuteScalarAsync());
-        return new GameList { Id = id, Name = name.Trim(), Color = color };
+        return new GameList
+        {
+            Id = id,
+            Name = name.Trim(),
+            Color = color,
+            Emoji = NormalizeEmoji(emoji)
+        };
+    }
+
+    public async Task UpdateListAsync(int listId, string name, string color, string emoji)
+    {
+        await using var connection = await OpenConnectionAsync();
+        var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            UPDATE Lists
+            SET Name = $name, Color = $color, Emoji = $emoji
+            WHERE Id = $id;
+            """;
+        command.Parameters.AddWithValue("$name", name.Trim());
+        command.Parameters.AddWithValue("$color", color);
+        command.Parameters.AddWithValue("$emoji", NormalizeEmoji(emoji));
+        command.Parameters.AddWithValue("$id", listId);
+        await command.ExecuteNonQueryAsync();
     }
 
     public async Task DeleteListAsync(int listId)
@@ -184,7 +214,7 @@ public sealed class DatabaseService
         return games;
     }
 
-    public async Task<int> UpsertGameAsync(GameSearchResult game, int listId, string localCoverPath)
+    public async Task<int> UpsertGameAsync(GameSearchResult game, string localCoverPath)
     {
         await using var connection = await OpenConnectionAsync();
         await using var transaction = connection.BeginTransaction();
@@ -229,20 +259,23 @@ public sealed class DatabaseService
         upsert.Parameters.AddWithValue("$now", now);
         var gameId = Convert.ToInt32(await upsert.ExecuteScalarAsync());
 
-        var membership = connection.CreateCommand();
-        membership.Transaction = transaction;
-        membership.CommandText =
-            """
-            INSERT OR IGNORE INTO GameLists (GameId, ListId, AddedAt)
-            VALUES ($gameId, $listId, $now);
-            """;
-        membership.Parameters.AddWithValue("$gameId", gameId);
-        membership.Parameters.AddWithValue("$listId", listId);
-        membership.Parameters.AddWithValue("$now", now);
-        await membership.ExecuteNonQueryAsync();
-
         await transaction.CommitAsync();
         return gameId;
+    }
+
+    public async Task AddGameToListAsync(int gameId, int listId)
+    {
+        await using var connection = await OpenConnectionAsync();
+        var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            INSERT OR IGNORE INTO GameLists (GameId, ListId, AddedAt)
+            VALUES ($gameId, $listId, $addedAt);
+            """;
+        command.Parameters.AddWithValue("$gameId", gameId);
+        command.Parameters.AddWithValue("$listId", listId);
+        command.Parameters.AddWithValue("$addedAt", DateTimeOffset.UtcNow.ToString("O"));
+        await command.ExecuteNonQueryAsync();
     }
 
     public async Task<IReadOnlyList<ListMembershipOption>> GetMembershipsAsync(int gameId)
@@ -252,7 +285,7 @@ public sealed class DatabaseService
         var command = connection.CreateCommand();
         command.CommandText =
             """
-            SELECT l.Id, l.Name, l.Color,
+            SELECT l.Id, l.Name, l.Color, l.Emoji,
                    CASE WHEN gl.GameId IS NULL THEN 0 ELSE 1 END AS IsSelected
             FROM Lists l
             LEFT JOIN GameLists gl ON gl.ListId = l.Id AND gl.GameId = $gameId
@@ -268,7 +301,8 @@ public sealed class DatabaseService
                 ListId = reader.GetInt32(0),
                 Name = reader.GetString(1),
                 Color = reader.GetString(2),
-                IsSelected = reader.GetInt32(3) == 1
+                Emoji = reader.GetString(3),
+                IsSelected = reader.GetInt32(4) == 1
             });
         }
 
@@ -399,28 +433,72 @@ public sealed class DatabaseService
         return connection;
     }
 
+    private static string ResolveDefaultDataDirectory()
+    {
+        var localAppData =
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var currentDirectory = Path.Combine(localAppData, "JOGOTECA");
+        var legacyDirectory = Path.Combine(localAppData, "Ludoteca");
+        return Directory.Exists(legacyDirectory) && !Directory.Exists(currentDirectory)
+            ? legacyDirectory
+            : currentDirectory;
+    }
+
     private static async Task InsertDefaultListsAsync(SqliteConnection connection)
     {
         var defaults = new[]
         {
-            ("Quero jogar", "#CFC4F5"),
-            ("Jogando", "#B9DDCF"),
-            ("Finalizados", "#F5C6B5")
+            ("Quero jogar", "#CFC4F5", "🎯"),
+            ("Jogando", "#B9DDCF", "🎮"),
+            ("Finalizados", "#F5C6B5", "🏆")
         };
 
-        foreach (var (name, color) in defaults)
+        foreach (var (name, color, emoji) in defaults)
         {
             var command = connection.CreateCommand();
             command.CommandText =
                 """
-                INSERT INTO Lists (Name, Color, CreatedAt)
-                VALUES ($name, $color, $createdAt);
+                INSERT INTO Lists (Name, Color, Emoji, CreatedAt)
+                VALUES ($name, $color, $emoji, $createdAt);
                 """;
             command.Parameters.AddWithValue("$name", name);
             command.Parameters.AddWithValue("$color", color);
+            command.Parameters.AddWithValue("$emoji", emoji);
             command.Parameters.AddWithValue("$createdAt", DateTimeOffset.UtcNow.ToString("O"));
             await command.ExecuteNonQueryAsync();
         }
+    }
+
+    private static async Task EnsureListEmojiColumnAsync(SqliteConnection connection)
+    {
+        var check = connection.CreateCommand();
+        check.CommandText = "PRAGMA table_info(Lists);";
+        var hasEmoji = false;
+        await using (var reader = await check.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                if (reader.GetString(1).Equals("Emoji", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasEmoji = true;
+                    break;
+                }
+            }
+        }
+
+        if (hasEmoji)
+        {
+            return;
+        }
+
+        var alter = connection.CreateCommand();
+        alter.CommandText = "ALTER TABLE Lists ADD COLUMN Emoji TEXT NOT NULL DEFAULT '🎮';";
+        await alter.ExecuteNonQueryAsync();
+    }
+
+    private static string NormalizeEmoji(string emoji)
+    {
+        return string.IsNullOrWhiteSpace(emoji) ? "🎮" : emoji.Trim();
     }
 
     private static GameEntry MapGame(SqliteDataReader reader)

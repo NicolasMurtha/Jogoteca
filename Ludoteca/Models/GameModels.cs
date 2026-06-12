@@ -74,11 +74,42 @@ public sealed class GameEntry : ObservableModel
 
 public sealed class GameList : ObservableModel
 {
+    private string _name = string.Empty;
+    private string _color = "#CFC4F5";
+    private string _emoji = "🎮";
     private int _gameCount;
 
     public int Id { get; init; }
-    public string Name { get; init; } = string.Empty;
-    public string Color { get; init; } = "#CFC4F5";
+
+    public string Name
+    {
+        get => _name;
+        set
+        {
+            if (SetField(ref _name, value))
+            {
+                OnPropertyChanged(nameof(DisplayName));
+            }
+        }
+    }
+
+    public string Color
+    {
+        get => _color;
+        set => SetField(ref _color, value);
+    }
+
+    public string Emoji
+    {
+        get => _emoji;
+        set
+        {
+            if (SetField(ref _emoji, value))
+            {
+                OnPropertyChanged(nameof(DisplayName));
+            }
+        }
+    }
 
     public int GameCount
     {
@@ -93,6 +124,7 @@ public sealed class GameList : ObservableModel
     }
 
     public string CountDisplay => GameCount.ToString();
+    public string DisplayName => $"{Emoji}  {Name}".Trim();
 }
 
 public sealed class GameSearchResult
@@ -149,6 +181,7 @@ public sealed class ListMembershipOption : ObservableModel
     public int ListId { get; init; }
     public string Name { get; init; } = string.Empty;
     public string Color { get; init; } = "#CFC4F5";
+    public string Emoji { get; init; } = "🎮";
 
     public bool IsSelected
     {
@@ -160,5 +193,18 @@ public sealed class ListMembershipOption : ObservableModel
 public sealed class GameSearchResponse
 {
     public IReadOnlyList<GameSearchResult> Results { get; init; } = [];
+    public string Message { get; init; } = string.Empty;
+}
+
+public enum CatalogFeed
+{
+    Recommended,
+    Latest
+}
+
+public sealed class CatalogPage
+{
+    public IReadOnlyList<GameSearchResult> Results { get; init; } = [];
+    public bool HasMore { get; init; }
     public string Message { get; init; } = string.Empty;
 }

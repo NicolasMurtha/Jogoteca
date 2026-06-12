@@ -1,39 +1,37 @@
-# Ludoteca
+# JOGOTECA
 
 Aplicativo desktop local para organizar um backlog pessoal de jogos. Feito em
-WPF/.NET 8, com banco SQLite local e busca de catálogo pelo IGDB com fallback
+WPF/.NET 8, com banco SQLite local e catálogo opcional pelo IGDB com fallback
 automático para o RAWG.
 
 ## Recursos
 
-- Criação e exclusão de listas personalizadas.
-- Cadastro manual, exigindo apenas nome e lista.
-- Jogos em uma ou várias listas ao mesmo tempo.
-- Capa, nome, descrição, gêneros e ano de lançamento.
-- Nota pessoal de 0 a 10, em intervalos de 0,5.
-- Review pessoal por jogo.
-- Busca no IGDB e fallback para o RAWG quando necessário.
-- Cache local das capas para manter a biblioteca utilizável offline.
-- Credenciais das APIs protegidas pelo Windows com DPAPI.
-- Banco SQLite sem necessidade de servidor.
+- Tela inicial de descoberta com recomendações e últimos lançamentos.
+- Rolagem contínua para carregar mais jogos do catálogo.
+- Biblioteca independente: todo jogo adicionado entra primeiro nela.
+- Organização por drag-and-drop dos cards para as listas.
+- Criação, edição e exclusão de listas com nome, emoji e cor.
+- Cadastro manual exigindo somente o nome.
+- Capa, nome, descrição, gêneros e ano de lançamento opcionais.
+- Nota pessoal de 0 a 10 e review por jogo.
+- Busca no IGDB e fallback para o RAWG quando ambos estão configurados.
+- Funcionamento com apenas uma das APIs configurada ou sem nenhuma API.
+- Cache local das capas e credenciais protegidas pelo Windows com DPAPI.
 
 ## Executar
 
 Abra:
 
 ```text
-dist\Ludoteca-win-x64\Ludoteca.exe
+dist\JOGOTECA-win-x64\JOGOTECA.exe
 ```
 
-Nenhuma API é obrigatória. Use **Adicionar jogo** e escolha
+Nenhuma API é obrigatória. Use **Adicionar jogo** e
 **Adicionar manualmente** para cadastrar apenas o que souber.
-
-As APIs são opcionais e servem para preencher capa, descrição, categoria e ano
-automaticamente.
 
 ### RAWG
 
-É a configuração mais simples. Crie uma chave em:
+Crie uma chave em:
 
 https://rawg.io/apidocs
 
@@ -41,31 +39,28 @@ Cole a chave no campo **RAWG API Key**.
 
 ### IGDB
 
-O IGDB usa credenciais de uma aplicação Twitch. Siga:
+Crie as credenciais de uma aplicação Twitch seguindo:
 
 https://api-docs.igdb.com/#account-creation
 
-Informe o **Client ID** e o **Client Secret**. A Ludoteca solicita e renova o
-token de acesso automaticamente.
-
-Com apenas uma fonte configurada, somente ela é consultada. Quando as duas
-fontes estiverem configuradas, a busca consulta o IGDB primeiro e usa o RAWG
+Informe o **Client ID** e o **Client Secret**. Com apenas uma fonte configurada,
+somente ela é consultada. Com as duas, o IGDB é usado primeiro e o RAWG entra
 como fallback.
 
 ## Dados locais
 
-O banco, as credenciais criptografadas e as capas ficam em:
+Novas instalações guardam o banco, as capas e as configurações em:
 
 ```text
-%LOCALAPPDATA%\Ludoteca
+%LOCALAPPDATA%\JOGOTECA
 ```
 
-Essa pasta também pode ser aberta pelo botão **Abrir pasta dos dados** dentro
-das configurações.
+Instalações atualizadas continuam usando `%LOCALAPPDATA%\Ludoteca`
+automaticamente, preservando todos os dados da versão anterior.
 
 ## Compilar
 
-Requer o SDK do .NET 8 no Windows. Execute:
+Requer o SDK do .NET 8 no Windows:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build.ps1
@@ -77,7 +72,7 @@ O script executa os testes e publica uma versão autocontida para Windows x64.
 
 ```text
 Ludoteca\          Aplicativo WPF
-Ludoteca.Tests\    Testes de persistência e fallback das APIs
-design\            Fonte visual e captura de verificação
+Ludoteca.Tests\    Testes de persistência, catálogo e fallback das APIs
+design\            Capturas de verificação visual
 dist\              Executável publicado
 ```

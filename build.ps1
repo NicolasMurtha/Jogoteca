@@ -17,7 +17,7 @@ else {
 
 $solution = Join-Path $root "Ludoteca.sln"
 $project = Join-Path $root "Ludoteca\Ludoteca.csproj"
-$output = Join-Path $root "dist\Ludoteca-win-x64"
+$output = Join-Path $root "dist\JOGOTECA-win-x64"
 
 & $dotnet test $solution -c Release
 if ($LASTEXITCODE -ne 0) {
@@ -39,5 +39,5 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ""
-Write-Host "Ludoteca publicada em:"
-Write-Host (Join-Path $output "Ludoteca.exe")
+Write-Host "JOGOTECA publicada em:"
+Write-Host (Join-Path $output "JOGOTECA.exe")

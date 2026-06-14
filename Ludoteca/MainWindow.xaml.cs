@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -25,7 +26,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     ];
 
     private readonly DatabaseService _database = new();
-    private readonly GameApiService _gameApi = new();
+    private readonly GameApiService _gameApi;
     private readonly DispatcherTimer _toastTimer;
     private readonly SettingsService _settingsService;
 
@@ -50,6 +51,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public MainWindow()
     {
         InitializeComponent();
+        _gameApi = new GameApiService(
+            catalogCacheDirectory: Path.Combine(_database.AppDataDirectory, "catalog-cache"));
         _settingsService = new SettingsService(_database);
         _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.2) };
         _toastTimer.Tick += (_, _) =>
@@ -249,6 +252,28 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         AllGamesButton.Background = _selectedListId.HasValue
             ? Brushes.Transparent
             : BrushFromHex("#D7D2E8");
+    }
+
+    private void ShowLibraryGridView_Click(object sender, RoutedEventArgs e)
+    {
+        SetLibraryLayout(useList: false);
+    }
+
+    private void ShowLibraryListView_Click(object sender, RoutedEventArgs e)
+    {
+        SetLibraryLayout(useList: true);
+    }
+
+    private void SetLibraryLayout(bool useList)
+    {
+        LibraryGridView.Visibility = useList ? Visibility.Collapsed : Visibility.Visible;
+        LibraryListView.Visibility = useList ? Visibility.Visible : Visibility.Collapsed;
+        LibraryGridViewButton.Background = useList
+            ? Brushes.Transparent
+            : FindResource("Surface") as Brush;
+        LibraryListViewButton.Background = useList
+            ? FindResource("Surface") as Brush
+            : Brushes.Transparent;
     }
 
     private void SetListActionButtonsVisible(bool visible)
@@ -586,13 +611,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         try
         {
-            var firstSection = CatalogSections[0];
-            await LoadCatalogSectionAsync(firstSection, cancellationToken);
+            foreach (var section in CatalogSections)
+            {
+                section.TryBeginLoading();
+            }
 
-            var remainingTasks = CatalogSections
-                .Skip(1)
-                .Select(section => LoadCatalogSectionAsync(section, cancellationToken));
-            await Task.WhenAll(remainingTasks);
+            var pages = await _gameApi.GetCatalogBatchAsync(
+                CatalogSections.Select(section => section.Feed),
+                1,
+                _settings,
+                cancellationToken);
+            foreach (var section in CatalogSections)
+            {
+                section.ApplyPage(
+                    pages.GetValueOrDefault(section.Feed) ?? new CatalogPage(),
+                    1,
+                    reset: true);
+            }
 
             if (CatalogSections.All(section => section.Games.Count == 0))
             {
@@ -620,32 +655,69 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         finally
         {
+            foreach (var section in CatalogSections)
+            {
+                section.FinishLoading();
+            }
+
             _isCatalogLoading = false;
             DiscoveryLoadingState.Visibility = Visibility.Collapsed;
         }
     }
 
-    private async Task LoadCatalogSectionAsync(
+    private async Task LoadNextCatalogPageAsync(
         CatalogSection section,
         CancellationToken cancellationToken)
     {
+        if (!section.TryBeginLoading())
+        {
+            return;
+        }
+
         try
         {
+            var nextPage = section.CurrentPage + 1;
             var page = await _gameApi.GetCatalogAsync(
                 section.Feed,
-                1,
+                nextPage,
                 _settings,
                 cancellationToken);
-            section.ReplaceGames(page.Results);
+            section.ApplyPage(page, nextPage, reset: false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            throw;
+            // The catalog was refreshed or the window is closing.
         }
-        catch
+        catch (Exception ex)
         {
-            section.Clear();
+            ShowToast($"Não foi possível carregar mais jogos: {ex.Message}");
         }
+        finally
+        {
+            section.FinishLoading();
+        }
+    }
+
+    private async void CatalogSectionScrollViewer_ScrollChanged(
+        object sender,
+        ScrollChangedEventArgs e)
+    {
+        if (e.HorizontalChange <= 0 ||
+            sender is not ScrollViewer scrollViewer ||
+            scrollViewer.DataContext is not CatalogSection section ||
+            scrollViewer.ScrollableWidth <= 0)
+        {
+            return;
+        }
+
+        var remaining = scrollViewer.ScrollableWidth - scrollViewer.HorizontalOffset;
+        if (remaining > scrollViewer.ViewportWidth * 1.25)
+        {
+            return;
+        }
+
+        var cancellationToken = _catalogCancellation?.Token ?? CancellationToken.None;
+        await LoadNextCatalogPageAsync(section, cancellationToken);
     }
 
     private void ScrollCatalogSectionLeft_Click(object sender, RoutedEventArgs e)
@@ -659,15 +731,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             Math.Max(0, scrollViewer.HorizontalOffset - scrollViewer.ViewportWidth * 0.85));
     }
 
-    private void ScrollCatalogSectionRight_Click(object sender, RoutedEventArgs e)
+    private async void ScrollCatalogSectionRight_Click(object sender, RoutedEventArgs e)
     {
         if ((sender as FrameworkElement)?.Tag is not ScrollViewer scrollViewer)
         {
             return;
         }
 
-        scrollViewer.ScrollToHorizontalOffset(
-            scrollViewer.HorizontalOffset + scrollViewer.ViewportWidth * 0.85);
+        var targetOffset =
+            scrollViewer.HorizontalOffset + scrollViewer.ViewportWidth * 0.85;
+        scrollViewer.ScrollToHorizontalOffset(targetOffset);
+
+        if (scrollViewer.DataContext is CatalogSection section &&
+            targetOffset >= scrollViewer.ScrollableWidth - scrollViewer.ViewportWidth * 0.3)
+        {
+            var cancellationToken = _catalogCancellation?.Token ?? CancellationToken.None;
+            await LoadNextCatalogPageAsync(section, cancellationToken);
+        }
     }
 
     private async void CatalogCard_Click(object sender, RoutedEventArgs e)

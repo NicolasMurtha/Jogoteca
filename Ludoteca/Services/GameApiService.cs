@@ -11,14 +11,27 @@ namespace Ludoteca.Services;
 
 public sealed class GameApiService : IDisposable
 {
+    private static readonly TimeSpan CatalogCacheLifetime = TimeSpan.FromHours(12);
     private readonly HttpClient _httpClient;
+    private readonly string? _catalogCacheDirectory;
+    private readonly SemaphoreSlim _igdbRequestGate = new(1, 1);
+    private DateTimeOffset _nextIgdbRequestAt = DateTimeOffset.MinValue;
 
-    public GameApiService(HttpMessageHandler? messageHandler = null)
+    public GameApiService(
+        HttpMessageHandler? messageHandler = null,
+        string? catalogCacheDirectory = null)
     {
         _httpClient = messageHandler is null
             ? new HttpClient()
             : new HttpClient(messageHandler, disposeHandler: true);
         _httpClient.Timeout = TimeSpan.FromSeconds(20);
+        _catalogCacheDirectory = string.IsNullOrWhiteSpace(catalogCacheDirectory)
+            ? null
+            : catalogCacheDirectory;
+        if (_catalogCacheDirectory is not null)
+        {
+            Directory.CreateDirectory(_catalogCacheDirectory);
+        }
     }
 
     private string _igdbAccessToken = string.Empty;
@@ -104,6 +117,131 @@ public sealed class GameApiService : IDisposable
     }
 
     public async Task<CatalogPage> GetCatalogAsync(
+        CatalogFeed feed,
+        int page,
+        AppSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var cached = await TryReadCatalogCacheAsync(feed, page, settings, cancellationToken);
+        if (cached is not null)
+        {
+            return cached;
+        }
+
+        var result = await GetCatalogUncachedAsync(feed, page, settings, cancellationToken);
+        await WriteCatalogCacheAsync(feed, page, settings, result, cancellationToken);
+        return result;
+    }
+
+    public async Task<IReadOnlyDictionary<CatalogFeed, CatalogPage>> GetCatalogBatchAsync(
+        IEnumerable<CatalogFeed> feeds,
+        int page,
+        AppSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var requestedFeeds = feeds.Distinct().ToArray();
+        var pages = new Dictionary<CatalogFeed, CatalogPage>();
+        var missingFeeds = new List<CatalogFeed>();
+
+        foreach (var feed in requestedFeeds)
+        {
+            var cached = await TryReadCatalogCacheAsync(feed, page, settings, cancellationToken);
+            if (cached is null)
+            {
+                missingFeeds.Add(feed);
+            }
+            else
+            {
+                pages[feed] = cached;
+            }
+        }
+
+        if (missingFeeds.Count == 0)
+        {
+            return pages;
+        }
+
+        var feedsToCache = missingFeeds.ToHashSet();
+        Exception? igdbError = null;
+        if (settings.HasIgdb)
+        {
+            try
+            {
+                var igdbPages = await GetIgdbCatalogBatchAsync(
+                    missingFeeds,
+                    page,
+                    settings,
+                    cancellationToken);
+                foreach (var feed in missingFeeds.ToArray())
+                {
+                    var igdbPage = igdbPages.GetValueOrDefault(feed) ?? new CatalogPage();
+                    if (igdbPage.Results.Count == 0 && settings.HasRawg)
+                    {
+                        continue;
+                    }
+
+                    pages[feed] = igdbPage;
+                    missingFeeds.Remove(feed);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+            {
+                igdbError = ex;
+            }
+        }
+
+        if (settings.HasRawg)
+        {
+            foreach (var feed in missingFeeds.ToArray())
+            {
+                var rawgResults = await GetRawgCatalogAsync(feed, page, settings, cancellationToken);
+                pages[feed] = new CatalogPage
+                {
+                    Results = rawgResults,
+                    HasMore = rawgResults.Count == PageSize(feed),
+                    Message = settings.HasIgdb
+                        ? "Catálogo carregado pelo RAWG após fallback."
+                        : "Catálogo carregado pelo RAWG."
+                };
+                missingFeeds.Remove(feed);
+            }
+        }
+
+        if (missingFeeds.Count > 0 && igdbError is not null)
+        {
+            throw new HttpRequestException(
+                "Não foi possível carregar o catálogo pelo IGDB.",
+                igdbError);
+        }
+
+        foreach (var feed in missingFeeds)
+        {
+            pages[feed] = new CatalogPage();
+        }
+
+        foreach (var (feed, catalogPage) in pages)
+        {
+            if (!feedsToCache.Contains(feed))
+            {
+                continue;
+            }
+
+            await WriteCatalogCacheAsync(
+                feed,
+                page,
+                settings,
+                catalogPage,
+                cancellationToken);
+        }
+
+        return pages;
+    }
+
+    private async Task<CatalogPage> GetCatalogUncachedAsync(
         CatalogFeed feed,
         int page,
         AppSettings settings,
@@ -235,6 +373,7 @@ public sealed class GameApiService : IDisposable
 
     public void Dispose()
     {
+        _igdbRequestGate.Dispose();
         _httpClient.Dispose();
     }
 
@@ -263,7 +402,7 @@ public sealed class GameApiService : IDisposable
             Encoding.UTF8,
             "text/plain");
 
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        using var response = await SendIgdbAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
@@ -312,47 +451,65 @@ public sealed class GameApiService : IDisposable
         request.Headers.Add("Client-ID", settings.IgdbClientId);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var nowDate = DateTimeOffset.UtcNow;
-        var now = nowDate.ToUnixTimeSeconds();
-        var recent = nowDate.AddMonths(-18).ToUnixTimeSeconds();
-        var sixMonthsAhead = nowDate.AddMonths(6).ToUnixTimeSeconds();
-        var limit = PageSize(feed);
-        var offset = Math.Max(0, page - 1) * limit;
-        var body = feed switch
-        {
-            CatalogFeed.Recommended => BuildIgdbCatalogQuery(
-                $"first_release_date <= {now} & total_rating_count > 100",
-                "rating desc",
-                limit,
-                offset),
-            CatalogFeed.Trending => BuildIgdbCatalogQuery(
-                $"first_release_date >= {recent} & first_release_date <= {now} & total_rating_count > 5",
-                "total_rating_count desc",
-                limit,
-                offset),
-            CatalogFeed.MostAnticipated => BuildIgdbCatalogQuery(
-                $"first_release_date > {now} & hypes != null",
-                "hypes desc",
-                limit,
-                offset),
-            CatalogFeed.Upcoming => BuildIgdbCatalogQuery(
-                $"first_release_date > {now} & first_release_date <= {sixMonthsAhead}",
-                "first_release_date asc",
-                limit,
-                offset),
-            _ => BuildIgdbCatalogQuery(
-                $"first_release_date >= {recent} & first_release_date <= {now}",
-                "first_release_date desc",
-                limit,
-                offset)
-        };
+        var body = BuildIgdbCatalogQuery(feed, page);
         request.Content = new StringContent(body, Encoding.UTF8, "text/plain");
 
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        using var response = await SendIgdbAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
         return ParseIgdbGames(document.RootElement);
+    }
+
+    private async Task<IReadOnlyDictionary<CatalogFeed, CatalogPage>> GetIgdbCatalogBatchAsync(
+        IReadOnlyCollection<CatalogFeed> feeds,
+        int page,
+        AppSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var token = await GetIgdbTokenAsync(settings, cancellationToken);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "https://api.igdb.com/v4/multiquery");
+        request.Headers.Add("Client-ID", settings.IgdbClientId);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var queries = feeds.Select(feed =>
+            $"query games \"{feed}\" {{{Environment.NewLine}" +
+            $"{IndentQuery(BuildIgdbCatalogQuery(feed, page), 2)}{Environment.NewLine}" +
+            "};");
+        request.Content = new StringContent(
+            string.Join(Environment.NewLine, queries),
+            Encoding.UTF8,
+            "text/plain");
+
+        using var response = await SendIgdbAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+
+        var pages = new Dictionary<CatalogFeed, CatalogPage>();
+        foreach (var item in document.RootElement.EnumerateArray())
+        {
+            if (!item.TryGetProperty("name", out var nameElement) ||
+                !Enum.TryParse<CatalogFeed>(nameElement.GetString(), out var feed))
+            {
+                continue;
+            }
+
+            var results = item.TryGetProperty("result", out var resultElement) &&
+                          resultElement.ValueKind == JsonValueKind.Array
+                ? ParseIgdbGames(resultElement)
+                : [];
+            pages[feed] = new CatalogPage
+            {
+                Results = results,
+                HasMore = results.Count == PageSize(feed),
+                Message = "Catálogo carregado pelo IGDB."
+            };
+        }
+
+        return pages;
     }
 
     private async Task<string> GetIgdbTokenAsync(
@@ -502,9 +659,181 @@ public sealed class GameApiService : IDisposable
                 .Take(3));
     }
 
+    private async Task<HttpResponseMessage> SendIgdbAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        await _igdbRequestGate.WaitAsync(cancellationToken);
+        try
+        {
+            var delay = _nextIgdbRequestAt - DateTimeOffset.UtcNow;
+            if (delay > TimeSpan.Zero)
+            {
+                await Task.Delay(delay, cancellationToken);
+            }
+
+            _nextIgdbRequestAt = DateTimeOffset.UtcNow.AddMilliseconds(275);
+            return await _httpClient.SendAsync(request, cancellationToken);
+        }
+        finally
+        {
+            _igdbRequestGate.Release();
+        }
+    }
+
+    private async Task<CatalogPage?> TryReadCatalogCacheAsync(
+        CatalogFeed feed,
+        int page,
+        AppSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var path = CatalogCachePath(feed, page, settings);
+        if (path is null || !File.Exists(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            await using var stream = File.OpenRead(path);
+            var entry = await JsonSerializer.DeserializeAsync<CatalogCacheEntry>(
+                stream,
+                cancellationToken: cancellationToken);
+            if (entry is null ||
+                DateTimeOffset.UtcNow - entry.CachedAt > CatalogCacheLifetime)
+            {
+                return null;
+            }
+
+            return entry.Page;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            return null;
+        }
+    }
+
+    private async Task WriteCatalogCacheAsync(
+        CatalogFeed feed,
+        int page,
+        AppSettings settings,
+        CatalogPage catalogPage,
+        CancellationToken cancellationToken)
+    {
+        var path = CatalogCachePath(feed, page, settings);
+        if (path is null)
+        {
+            return;
+        }
+
+        var temporaryPath = $"{path}.{Guid.NewGuid():N}.tmp";
+        try
+        {
+            await using (var stream = File.Create(temporaryPath))
+            {
+                await JsonSerializer.SerializeAsync(
+                    stream,
+                    new CatalogCacheEntry
+                    {
+                        CachedAt = DateTimeOffset.UtcNow,
+                        Page = catalogPage
+                    },
+                    cancellationToken: cancellationToken);
+            }
+
+            File.Move(temporaryPath, path, overwrite: true);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Cache failures must not prevent the catalog from loading.
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(temporaryPath))
+                {
+                    File.Delete(temporaryPath);
+                }
+            }
+            catch (IOException)
+            {
+                // A stale temporary cache file is harmless.
+            }
+        }
+    }
+
+    private string? CatalogCachePath(
+        CatalogFeed feed,
+        int page,
+        AppSettings settings)
+    {
+        if (_catalogCacheDirectory is null)
+        {
+            return null;
+        }
+
+        var providers = (settings.HasIgdb, settings.HasRawg) switch
+        {
+            (true, true) => "igdb-rawg",
+            (true, false) => "igdb",
+            (false, true) => "rawg",
+            _ => "offline"
+        };
+        return Path.Combine(
+            _catalogCacheDirectory,
+            $"{providers}-{feed.ToString().ToLowerInvariant()}-{Math.Max(1, page)}.json");
+    }
+
     private static int PageSize(CatalogFeed feed)
     {
-        return 20;
+        return 40;
+    }
+
+    private static string BuildIgdbCatalogQuery(CatalogFeed feed, int page)
+    {
+        var nowDate = DateTimeOffset.UtcNow;
+        var now = nowDate.ToUnixTimeSeconds();
+        var recent = nowDate.AddMonths(-18).ToUnixTimeSeconds();
+        var sixMonthsAhead = nowDate.AddMonths(6).ToUnixTimeSeconds();
+        var limit = PageSize(feed);
+        var offset = Math.Max(0, page - 1) * limit;
+        return feed switch
+        {
+            CatalogFeed.Recommended => BuildIgdbCatalogQuery(
+                $"first_release_date <= {now} & total_rating_count > 100",
+                "rating desc",
+                limit,
+                offset),
+            CatalogFeed.Trending => BuildIgdbCatalogQuery(
+                $"first_release_date >= {recent} & first_release_date <= {now} & total_rating_count > 5",
+                "total_rating_count desc",
+                limit,
+                offset),
+            CatalogFeed.MostAnticipated => BuildIgdbCatalogQuery(
+                $"first_release_date > {now} & hypes != null",
+                "hypes desc",
+                limit,
+                offset),
+            CatalogFeed.Upcoming => BuildIgdbCatalogQuery(
+                $"first_release_date > {now} & first_release_date <= {sixMonthsAhead}",
+                "first_release_date asc",
+                limit,
+                offset),
+            _ => BuildIgdbCatalogQuery(
+                $"first_release_date >= {recent} & first_release_date <= {now}",
+                "first_release_date desc",
+                limit,
+                offset)
+        };
     }
 
     private static string BuildIgdbCatalogQuery(
@@ -522,6 +851,15 @@ public sealed class GameApiService : IDisposable
                 limit {limit};
                 offset {offset};
                 """;
+    }
+
+    private static string IndentQuery(string query, int spaces)
+    {
+        var indentation = new string(' ', spaces);
+        return string.Join(
+            Environment.NewLine,
+            query.Split(Environment.NewLine)
+                .Select(line => $"{indentation}{line}"));
     }
 
     private static IReadOnlyList<GameSearchResult> ParseIgdbGames(JsonElement items)
@@ -579,5 +917,11 @@ public sealed class GameApiService : IDisposable
         }
 
         return results;
+    }
+
+    private sealed class CatalogCacheEntry
+    {
+        public DateTimeOffset CachedAt { get; init; }
+        public CatalogPage Page { get; init; } = new();
     }
 }

@@ -51,6 +51,10 @@ public sealed class GameEntry : ObservableModel
     public string YearDisplay => ReleaseYear?.ToString() ?? "Ano desconhecido";
     public string CategoryDisplay => string.IsNullOrWhiteSpace(Category) ? "Sem categoria" : Category;
     public string RatingDisplay => UserRating.HasValue ? UserRating.Value.ToString("0.0") : "-";
+    public string ReviewDisplay =>
+        string.IsNullOrWhiteSpace(Review)
+            ? "Sem review escrita."
+            : Review;
     public bool HasRating => UserRating.HasValue;
 
     public double? UserRating
@@ -69,7 +73,13 @@ public sealed class GameEntry : ObservableModel
     public string Review
     {
         get => _review;
-        set => SetField(ref _review, value);
+        set
+        {
+            if (SetField(ref _review, value))
+            {
+                OnPropertyChanged(nameof(ReviewDisplay));
+            }
+        }
     }
 }
 
@@ -218,6 +228,9 @@ public sealed class CatalogPage
 public sealed class CatalogSection : ObservableModel
 {
     private bool _isVisible;
+    private bool _isLoading;
+    private bool _hasMore = true;
+    private int _currentPage;
 
     public required CatalogFeed Feed { get; init; }
     public required string Title { get; init; }
@@ -230,11 +243,51 @@ public sealed class CatalogSection : ObservableModel
         private set => SetField(ref _isVisible, value);
     }
 
-    public void ReplaceGames(IEnumerable<GameSearchResult> games)
+    public bool IsLoading
     {
-        Games.Clear();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var game in games)
+        get => _isLoading;
+        private set => SetField(ref _isLoading, value);
+    }
+
+    public bool HasMore
+    {
+        get => _hasMore;
+        private set => SetField(ref _hasMore, value);
+    }
+
+    public int CurrentPage
+    {
+        get => _currentPage;
+        private set => SetField(ref _currentPage, value);
+    }
+
+    public bool TryBeginLoading()
+    {
+        if (IsLoading || (CurrentPage > 0 && !HasMore))
+        {
+            return false;
+        }
+
+        IsLoading = true;
+        return true;
+    }
+
+    public void FinishLoading()
+    {
+        IsLoading = false;
+    }
+
+    public void ApplyPage(CatalogPage page, int pageNumber, bool reset)
+    {
+        if (reset)
+        {
+            Games.Clear();
+        }
+
+        var seen = Games
+            .Select(game => $"{game.Source}:{game.ExternalId}")
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var game in page.Results)
         {
             if (seen.Add($"{game.Source}:{game.ExternalId}"))
             {
@@ -242,6 +295,8 @@ public sealed class CatalogSection : ObservableModel
             }
         }
 
+        CurrentPage = pageNumber;
+        HasMore = page.HasMore;
         IsVisible = Games.Count > 0;
     }
 
@@ -249,5 +304,8 @@ public sealed class CatalogSection : ObservableModel
     {
         Games.Clear();
         IsVisible = false;
+        IsLoading = false;
+        HasMore = true;
+        CurrentPage = 0;
     }
 }

@@ -223,6 +223,7 @@
                         <Button x:Name="AllGamesButton"
                                 Style="{StaticResource NavButton}"
                                 Margin="0,3,0,0"
+                                AutomationProperties.Name="Biblioteca"
                                 Click="AllGamesButton_Click">
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -400,7 +401,7 @@
                             <StackPanel x:Name="DiscoveryContent">
                                 <TextBlock Margin="0,22,6,0"
                                            HorizontalAlignment="Right"
-                                           Text="Role a página para baixo e cada faixa para o lado"
+                                           Text="As faixas carregam mais jogos perto do fim e usam cache por 12 horas"
                                            Foreground="{StaticResource TextSecondary}"
                                            FontSize="11" />
 
@@ -423,7 +424,8 @@
                                                     <ScrollViewer x:Name="SectionScrollViewer"
                                                                   HorizontalScrollBarVisibility="Hidden"
                                                                   VerticalScrollBarVisibility="Disabled"
-                                                                  PanningMode="HorizontalOnly">
+                                                                  PanningMode="HorizontalOnly"
+                                                                  ScrollChanged="CatalogSectionScrollViewer_ScrollChanged">
                                                         <ItemsControl ItemsSource="{Binding Games}"
                                                                       ItemTemplate="{StaticResource DiscoveryGameCardTemplate}">
                                                             <ItemsControl.ItemsPanel>
@@ -433,6 +435,25 @@
                                                             </ItemsControl.ItemsPanel>
                                                         </ItemsControl>
                                                     </ScrollViewer>
+
+                                                    <Border Padding="10,6"
+                                                            Margin="0,0,50,8"
+                                                            HorizontalAlignment="Right"
+                                                            VerticalAlignment="Bottom"
+                                                            Background="#EEFBFAF8"
+                                                            CornerRadius="10"
+                                                            Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibility}}"
+                                                            Panel.ZIndex="3">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="•••"
+                                                                       Margin="0,-3,7,0"
+                                                                       Foreground="#66568E"
+                                                                       FontWeight="Bold" />
+                                                            <TextBlock Text="Carregando mais"
+                                                                       FontSize="11"
+                                                                       Foreground="{StaticResource TextSecondary}" />
+                                                        </StackPanel>
+                                                    </Border>
 
                                                     <Button Style="{StaticResource IconButton}"
                                                             Width="38"
@@ -545,6 +566,36 @@
                         <StackPanel Grid.Column="1"
                                     Orientation="Horizontal"
                                     VerticalAlignment="Center">
+                            <Border Margin="0,0,12,0"
+                                    Padding="3"
+                                    Background="{StaticResource SurfaceMuted}"
+                                    CornerRadius="11">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button x:Name="LibraryGridViewButton"
+                                            Style="{StaticResource IconButton}"
+                                            Width="36"
+                                            Height="36"
+                                            Background="{StaticResource Surface}"
+                                            Click="ShowLibraryGridView_Click"
+                                            AutomationProperties.Name="Visualização em cards"
+                                            ToolTip="Visualização em cards">
+                                        <TextBlock FontFamily="Segoe Fluent Icons"
+                                                   Text="&#xF0E2;"
+                                                   FontSize="15" />
+                                    </Button>
+                                    <Button x:Name="LibraryListViewButton"
+                                            Style="{StaticResource IconButton}"
+                                            Width="36"
+                                            Height="36"
+                                            Click="ShowLibraryListView_Click"
+                                            AutomationProperties.Name="Visualização em lista"
+                                            ToolTip="Visualização em lista">
+                                        <TextBlock FontFamily="Segoe Fluent Icons"
+                                                   Text="&#xEA37;"
+                                                   FontSize="15" />
+                                    </Button>
+                                </StackPanel>
+                            </Border>
                             <Grid Width="290" Height="43">
                                 <TextBox x:Name="OnlineSearchBox"
                                          Style="{StaticResource TextInput}"
@@ -599,7 +650,8 @@
                     </Grid>
 
                     <Grid Grid.Row="2">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                        <ScrollViewer x:Name="LibraryGridView"
+                                      VerticalScrollBarVisibility="Auto"
                                       HorizontalScrollBarVisibility="Disabled"
                                       Padding="28,0,20,28">
                             <ItemsControl ItemsSource="{Binding Games}">
@@ -736,6 +788,176 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+                        </ScrollViewer>
+
+                        <ScrollViewer x:Name="LibraryListView"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      HorizontalContentAlignment="Stretch"
+                                      Padding="34,0,28,28"
+                                      Visibility="Collapsed">
+                            <StackPanel>
+                                <Border Margin="0,0,0,8"
+                                        Padding="14,9"
+                                        Background="{StaticResource SurfaceMuted}"
+                                        CornerRadius="11">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="74" />
+                                            <ColumnDefinition Width="240" />
+                                            <ColumnDefinition Width="110" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="82" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="JOGO"
+                                                   FontSize="10"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource TextSecondary}" />
+                                        <TextBlock Grid.Column="2"
+                                                   Text="SUA NOTA"
+                                                   FontSize="10"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource TextSecondary}" />
+                                        <TextBlock Grid.Column="3"
+                                                   Text="REVIEW"
+                                                   FontSize="10"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource TextSecondary}" />
+                                    </Grid>
+                                </Border>
+
+                                <ItemsControl ItemsSource="{Binding Games}"
+                                              HorizontalContentAlignment="Stretch">
+                                    <ItemsControl.ItemContainerStyle>
+                                        <Style TargetType="ContentPresenter">
+                                            <Setter Property="HorizontalAlignment" Value="Stretch" />
+                                        </Style>
+                                    </ItemsControl.ItemContainerStyle>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Margin="0,0,0,8"
+                                                    Background="{StaticResource Surface}"
+                                                    BorderBrush="{StaticResource BorderBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="13">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="82" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <Button Grid.Column="0"
+                                                            Style="{StaticResource CardButton}"
+                                                            Height="92"
+                                                            Click="GameCard_Click"
+                                                            PreviewMouseLeftButtonDown="GameCard_PreviewMouseLeftButtonDown"
+                                                            PreviewMouseMove="GameCard_PreviewMouseMove">
+                                                        <Grid Margin="12,10">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="62" />
+                                                                <ColumnDefinition Width="240" />
+                                                                <ColumnDefinition Width="110" />
+                                                                <ColumnDefinition Width="*" />
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <Border Width="52"
+                                                                    Height="72"
+                                                                    HorizontalAlignment="Left"
+                                                                    Background="#DDD9D3"
+                                                                    CornerRadius="8"
+                                                                    ClipToBounds="True">
+                                                                <Grid>
+                                                                    <TextBlock FontFamily="Segoe Fluent Icons"
+                                                                               Text="&#xE7FC;"
+                                                                               FontSize="22"
+                                                                               Foreground="#AAA6A0"
+                                                                               HorizontalAlignment="Center"
+                                                                               VerticalAlignment="Center" />
+                                                                    <Border CornerRadius="8">
+                                                                        <Border.Background>
+                                                                            <ImageBrush ImageSource="{Binding CoverDisplay}"
+                                                                                        Stretch="UniformToFill" />
+                                                                        </Border.Background>
+                                                                    </Border>
+                                                                </Grid>
+                                                            </Border>
+
+                                                            <StackPanel Grid.Column="1"
+                                                                        Margin="0,0,18,0"
+                                                                        VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding Name}"
+                                                                           FontSize="14"
+                                                                           FontWeight="SemiBold"
+                                                                           TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Margin="0,5,0,0"
+                                                                           Foreground="{StaticResource TextSecondary}"
+                                                                           FontSize="11"
+                                                                           TextTrimming="CharacterEllipsis">
+                                                                    <Run Text="{Binding YearDisplay, Mode=OneWay}" />
+                                                                    <Run Text=" • " />
+                                                                    <Run Text="{Binding CategoryDisplay, Mode=OneWay}" />
+                                                                </TextBlock>
+                                                            </StackPanel>
+
+                                                            <StackPanel Grid.Column="2"
+                                                                        Orientation="Horizontal"
+                                                                        VerticalAlignment="Center">
+                                                                <TextBlock FontFamily="Segoe Fluent Icons"
+                                                                           Text="&#xE735;"
+                                                                           Foreground="#A78024"
+                                                                           FontSize="13"
+                                                                           Margin="0,0,6,0" />
+                                                                <TextBlock Text="{Binding RatingDisplay}"
+                                                                           FontSize="15"
+                                                                           FontWeight="SemiBold" />
+                                                            </StackPanel>
+
+                                                            <TextBlock Grid.Column="3"
+                                                                       Margin="0,0,18,0"
+                                                                       Text="{Binding ReviewDisplay}"
+                                                                       VerticalAlignment="Center"
+                                                                       Foreground="{StaticResource TextSecondary}"
+                                                                       FontSize="12"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                        </Grid>
+                                                    </Button>
+
+                                                    <StackPanel Grid.Column="1"
+                                                                Orientation="Horizontal"
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center">
+                                                        <Button Style="{StaticResource IconButton}"
+                                                                Width="32"
+                                                                Height="32"
+                                                                Margin="0,0,5,0"
+                                                                Background="#F3EEE6"
+                                                                ToolTip="Retirar desta lista"
+                                                                Visibility="{Binding DataContext.IsViewingList, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
+                                                                Click="RemoveGameFromCurrentList_Click">
+                                                            <TextBlock Text="−"
+                                                                       FontSize="19"
+                                                                       FontWeight="Bold"
+                                                                       Foreground="#7C6B55" />
+                                                        </Button>
+                                                        <Button Style="{StaticResource IconButton}"
+                                                                Width="32"
+                                                                Height="32"
+                                                                Background="#F3DEDA"
+                                                                ToolTip="Remover da biblioteca"
+                                                                Click="DeleteGameFromCard_Click">
+                                                            <TextBlock Text="×"
+                                                                       FontSize="20"
+                                                                       FontWeight="Bold"
+                                                                       Foreground="#B23A3A" />
+                                                        </Button>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
                         </ScrollViewer>
 
                         <StackPanel x:Name="EmptyLibraryState"

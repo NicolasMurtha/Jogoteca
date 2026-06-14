@@ -320,6 +320,136 @@ public sealed class GameApiServiceTests
         Assert.Contains(expectedQueryFragment, handler.LastIgdbBody);
     }
 
+    [Fact]
+    public async Task LoadsInitialIgdbFeedsWithOneMultiqueryRequest()
+    {
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            if (request.RequestUri?.Host == "id.twitch.tv")
+            {
+                return Json("""{"access_token":"token","expires_in":3600}""");
+            }
+
+            if (request.RequestUri?.AbsolutePath.EndsWith("/multiquery") == true)
+            {
+                return Json(
+                    """
+                    [
+                      {
+                        "name": "Recommended",
+                        "result": [
+                          {
+                            "id": 42,
+                            "name": "Batch Game",
+                            "summary": "Loaded once.",
+                            "first_release_date": 1704067200,
+                            "genres": [{"name": "RPG"}],
+                            "cover": {"image_id": "cover42"}
+                          }
+                        ]
+                      },
+                      {
+                        "name": "Trending",
+                        "result": []
+                      }
+                    ]
+                    """);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var service = new GameApiService(handler);
+        var pages = await service.GetCatalogBatchAsync(
+            [CatalogFeed.Recommended, CatalogFeed.Trending],
+            1,
+            new AppSettings
+            {
+                IgdbClientId = "client",
+                IgdbClientSecret = "secret"
+            },
+            CancellationToken.None);
+
+        Assert.Equal("Batch Game", Assert.Single(pages[CatalogFeed.Recommended].Results).Name);
+        Assert.Empty(pages[CatalogFeed.Trending].Results);
+        Assert.Equal(1, handler.IgdbCalls);
+        Assert.Contains("query games \"Recommended\"", handler.LastIgdbBody);
+        Assert.Contains("query games \"Trending\"", handler.LastIgdbBody);
+    }
+
+    [Fact]
+    public async Task ReusesCatalogCacheAcrossServiceInstances()
+    {
+        var cacheDirectory =
+            Path.Combine(Path.GetTempPath(), $"Jogoteca.CatalogCache.{Guid.NewGuid():N}");
+        try
+        {
+            var firstHandler = new StubHttpMessageHandler(request =>
+            {
+                if (request.RequestUri?.Host == "id.twitch.tv")
+                {
+                    return Json("""{"access_token":"token","expires_in":3600}""");
+                }
+
+                if (request.RequestUri?.Host == "api.igdb.com")
+                {
+                    return Json(
+                        """
+                        [
+                          {
+                            "id": 99,
+                            "name": "Cached Game",
+                            "first_release_date": 1704067200,
+                            "genres": [],
+                            "cover": {"image_id": "cached99"}
+                          }
+                        ]
+                        """);
+                }
+
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            });
+
+            using (var firstService = new GameApiService(firstHandler, cacheDirectory))
+            {
+                var firstPage = await firstService.GetCatalogAsync(
+                    CatalogFeed.Latest,
+                    1,
+                    new AppSettings
+                    {
+                        IgdbClientId = "client",
+                        IgdbClientSecret = "secret"
+                    },
+                    CancellationToken.None);
+                Assert.Equal("Cached Game", Assert.Single(firstPage.Results).Name);
+            }
+
+            var secondHandler = new StubHttpMessageHandler(
+                _ => new HttpResponseMessage(HttpStatusCode.InternalServerError));
+            using var secondService = new GameApiService(secondHandler, cacheDirectory);
+            var cachedPage = await secondService.GetCatalogAsync(
+                CatalogFeed.Latest,
+                1,
+                new AppSettings
+                {
+                    IgdbClientId = "client",
+                    IgdbClientSecret = "secret"
+                },
+                CancellationToken.None);
+
+            Assert.Equal("Cached Game", Assert.Single(cachedPage.Results).Name);
+            Assert.Equal(0, secondHandler.IgdbCalls);
+            Assert.Equal(0, secondHandler.TwitchCalls);
+        }
+        finally
+        {
+            if (Directory.Exists(cacheDirectory))
+            {
+                Directory.Delete(cacheDirectory, recursive: true);
+            }
+        }
+    }
+
     private static AppSettings CompleteSettings()
     {
         return new AppSettings

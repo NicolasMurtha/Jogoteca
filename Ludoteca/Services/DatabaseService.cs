@@ -58,6 +58,7 @@ public sealed class DatabaseService
                 Description TEXT NOT NULL DEFAULT '',
                 Category TEXT NOT NULL DEFAULT '',
                 ReleaseYear INTEGER NULL,
+                ReleaseDate TEXT NOT NULL DEFAULT '',
                 CoverUrl TEXT NOT NULL DEFAULT '',
                 LocalCoverPath TEXT NOT NULL DEFAULT '',
                 UserRating REAL NULL,
@@ -86,6 +87,7 @@ public sealed class DatabaseService
             """;
         await command.ExecuteNonQueryAsync();
         await EnsureListEmojiColumnAsync(connection);
+        await EnsureGameReleaseDateColumnAsync(connection);
 
         var countCommand = connection.CreateCommand();
         countCommand.CommandText = "SELECT COUNT(*) FROM Lists;";
@@ -126,7 +128,7 @@ public sealed class DatabaseService
         return lists;
     }
 
-    public async Task<GameList> CreateListAsync(string name, string color, string emoji = "🎮")
+    public async Task<GameList> CreateListAsync(string name, string color, string emoji = ListEmojiCatalog.Game)
     {
         await using var connection = await OpenConnectionAsync();
         var command = connection.CreateCommand();
@@ -177,7 +179,10 @@ public sealed class DatabaseService
         await command.ExecuteNonQueryAsync();
     }
 
-    public async Task<IReadOnlyList<GameEntry>> GetGamesAsync(int? listId, string filter = "")
+    public async Task<IReadOnlyList<GameEntry>> GetGamesAsync(
+        int? listId,
+        string filter = "",
+        GameLibraryFilter libraryFilter = GameLibraryFilter.None)
     {
         var games = new List<GameEntry>();
         await using var connection = await OpenConnectionAsync();
@@ -196,10 +201,24 @@ public sealed class DatabaseService
             command.Parameters.AddWithValue("$filter", $"%{filter.Trim()}%");
         }
 
+        switch (libraryFilter)
+        {
+            case GameLibraryFilter.Unrated:
+                whereParts.Add("g.UserRating IS NULL");
+                break;
+            case GameLibraryFilter.Reviewed:
+                whereParts.Add("TRIM(g.Review) <> ''");
+                break;
+            case GameLibraryFilter.Unorganized:
+                whereParts.Add("NOT EXISTS (SELECT 1 FROM GameLists gl WHERE gl.GameId = g.Id)");
+                break;
+        }
+
         command.CommandText =
             $"""
              SELECT g.Id, g.Source, g.ExternalId, g.Name, g.Description, g.Category,
-                    g.ReleaseYear, g.CoverUrl, g.LocalCoverPath, g.UserRating, g.Review, g.AddedAt
+                    g.ReleaseYear, g.ReleaseDate, g.CoverUrl, g.LocalCoverPath,
+                    g.UserRating, g.Review, g.AddedAt
              FROM Games g
              {(whereParts.Count > 0 ? $"WHERE {string.Join(" AND ", whereParts)}" : string.Empty)}
              ORDER BY g.UpdatedAt DESC, g.Name COLLATE NOCASE;
@@ -225,11 +244,11 @@ public sealed class DatabaseService
         upsert.CommandText =
             """
             INSERT INTO Games (
-                Source, ExternalId, Name, Description, Category, ReleaseYear,
+                Source, ExternalId, Name, Description, Category, ReleaseYear, ReleaseDate,
                 CoverUrl, LocalCoverPath, AddedAt, UpdatedAt
             )
             VALUES (
-                $source, $externalId, $name, $description, $category, $releaseYear,
+                $source, $externalId, $name, $description, $category, $releaseYear, $releaseDate,
                 $coverUrl, $localCoverPath, $now, $now
             )
             ON CONFLICT(Source, ExternalId) DO UPDATE SET
@@ -240,6 +259,10 @@ public sealed class DatabaseService
                 END,
                 Category = excluded.Category,
                 ReleaseYear = excluded.ReleaseYear,
+                ReleaseDate = CASE
+                    WHEN excluded.ReleaseDate <> '' THEN excluded.ReleaseDate
+                    ELSE Games.ReleaseDate
+                END,
                 CoverUrl = excluded.CoverUrl,
                 LocalCoverPath = CASE
                     WHEN excluded.LocalCoverPath <> '' THEN excluded.LocalCoverPath
@@ -254,6 +277,7 @@ public sealed class DatabaseService
         upsert.Parameters.AddWithValue("$description", game.Description ?? string.Empty);
         upsert.Parameters.AddWithValue("$category", game.Category);
         upsert.Parameters.AddWithValue("$releaseYear", (object?)game.ReleaseYear ?? DBNull.Value);
+        upsert.Parameters.AddWithValue("$releaseDate", game.ReleaseDate ?? string.Empty);
         upsert.Parameters.AddWithValue("$coverUrl", game.CoverUrl);
         upsert.Parameters.AddWithValue("$localCoverPath", localCoverPath);
         upsert.Parameters.AddWithValue("$now", now);
@@ -427,7 +451,11 @@ public sealed class DatabaseService
         command.CommandText =
             """
             SELECT COUNT(*),
+                   SUM(CASE WHEN UserRating IS NULL THEN 1 ELSE 0 END),
                    SUM(CASE WHEN TRIM(Review) <> '' THEN 1 ELSE 0 END),
+                   SUM(CASE WHEN NOT EXISTS (
+                       SELECT 1 FROM GameLists gl WHERE gl.GameId = Games.Id
+                   ) THEN 1 ELSE 0 END),
                    AVG(UserRating)
             FROM Games;
             """;
@@ -437,8 +465,10 @@ public sealed class DatabaseService
         return new LibraryStats
         {
             TotalGames = reader.GetInt32(0),
-            ReviewedGames = reader.IsDBNull(1) ? 0 : reader.GetInt32(1),
-            AverageRating = reader.IsDBNull(2) ? null : reader.GetDouble(2)
+            UnratedGames = reader.IsDBNull(1) ? 0 : reader.GetInt32(1),
+            ReviewedGames = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+            UnorganizedGames = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+            AverageRating = reader.IsDBNull(4) ? null : reader.GetDouble(4)
         };
     }
 
@@ -502,9 +532,9 @@ public sealed class DatabaseService
     {
         var defaults = new[]
         {
-            ("Quero jogar", "#CFC4F5", "🎯"),
-            ("Jogando", "#B9DDCF", "🎮"),
-            ("Finalizados", "#F5C6B5", "🏆")
+            ("Quero jogar", "#CFC4F5", ListEmojiCatalog.Target),
+            ("Jogando", "#B9DDCF", ListEmojiCatalog.Game),
+            ("Finalizados", "#F5C6B5", ListEmojiCatalog.Trophy)
         };
 
         foreach (var (name, color, emoji) in defaults)
@@ -550,9 +580,36 @@ public sealed class DatabaseService
         await alter.ExecuteNonQueryAsync();
     }
 
+    private static async Task EnsureGameReleaseDateColumnAsync(SqliteConnection connection)
+    {
+        var check = connection.CreateCommand();
+        check.CommandText = "PRAGMA table_info(Games);";
+        var hasReleaseDate = false;
+        await using (var reader = await check.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                if (reader.GetString(1).Equals("ReleaseDate", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasReleaseDate = true;
+                    break;
+                }
+            }
+        }
+
+        if (hasReleaseDate)
+        {
+            return;
+        }
+
+        var alter = connection.CreateCommand();
+        alter.CommandText = "ALTER TABLE Games ADD COLUMN ReleaseDate TEXT NOT NULL DEFAULT '';";
+        await alter.ExecuteNonQueryAsync();
+    }
+
     private static string NormalizeEmoji(string emoji)
     {
-        return string.IsNullOrWhiteSpace(emoji) ? "🎮" : emoji.Trim();
+        return ListEmojiCatalog.Normalize(emoji);
     }
 
     private static GameEntry MapGame(SqliteDataReader reader)
@@ -566,11 +623,12 @@ public sealed class DatabaseService
             Description = reader.GetString(4),
             Category = reader.GetString(5),
             ReleaseYear = reader.IsDBNull(6) ? null : reader.GetInt32(6),
-            CoverUrl = reader.GetString(7),
-            LocalCoverPath = reader.GetString(8),
-            UserRating = reader.IsDBNull(9) ? null : reader.GetDouble(9),
-            Review = reader.GetString(10),
-            AddedAt = reader.GetString(11)
+            ReleaseDate = reader.GetString(7),
+            CoverUrl = reader.GetString(8),
+            LocalCoverPath = reader.GetString(9),
+            UserRating = reader.IsDBNull(10) ? null : reader.GetDouble(10),
+            Review = reader.GetString(11),
+            AddedAt = reader.GetString(12)
         };
     }
 }

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 
@@ -39,6 +40,7 @@ public sealed class GameEntry : ObservableModel
     public string Description { get; init; } = string.Empty;
     public string Category { get; init; } = string.Empty;
     public int? ReleaseYear { get; init; }
+    public string ReleaseDate { get; init; } = string.Empty;
     public string CoverUrl { get; init; } = string.Empty;
     public string LocalCoverPath { get; init; } = string.Empty;
     public string AddedAt { get; init; } = string.Empty;
@@ -49,6 +51,18 @@ public sealed class GameEntry : ObservableModel
             : CoverUrl;
 
     public string YearDisplay => ReleaseYear?.ToString() ?? "Ano desconhecido";
+    public string ReleaseDateDisplay =>
+        TryParseReleaseDate(ReleaseDate, out var releaseDate)
+            ? releaseDate.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)
+            : ReleaseYear.HasValue
+                ? new DateTime(ReleaseYear.Value, 1, 1).ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)
+                : "Data desconhecida";
+    public DateTime? ReleaseSortDate =>
+        TryParseReleaseDate(ReleaseDate, out var releaseDate)
+            ? releaseDate
+            : ReleaseYear.HasValue
+                ? new DateTime(ReleaseYear.Value, 1, 1)
+                : null;
     public string CategoryDisplay => string.IsNullOrWhiteSpace(Category) ? "Sem categoria" : Category;
     public string RatingDisplay => UserRating.HasValue ? UserRating.Value.ToString("0.0") : "-";
     public string ReviewDisplay =>
@@ -81,15 +95,65 @@ public sealed class GameEntry : ObservableModel
             }
         }
     }
+
+    private static bool TryParseReleaseDate(string value, out DateTime releaseDate)
+    {
+        return DateTime.TryParseExact(
+            value,
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out releaseDate);
+    }
 }
 
 public sealed record GameDragData(GameEntry Game, int? SourceListId);
+
+public sealed record ListEmojiOption(string Name, string Emoji);
+
+public static class ListEmojiCatalog
+{
+    public const string Game = "🎮";
+    public const string Target = "🎯";
+    public const string Trophy = "🏆";
+    public const string Star = "⭐";
+    public const string Heart = "💜";
+
+    public static IReadOnlyList<ListEmojiOption> Options { get; } =
+    [
+        new("Controle", Game),
+        new("Quero jogar", Target),
+        new("Finalizados", Trophy),
+        new("Favoritos", Star),
+        new("Especial", Heart),
+        new("Fogo", "🔥"),
+        new("Relógio", "⏳"),
+        new("Diamante", "💎"),
+        new("Espada", "⚔️"),
+        new("Mundo", "🌍")
+    ];
+
+    public static string Normalize(string? value)
+    {
+        var emoji = value?.Trim() ?? string.Empty;
+        return emoji switch
+        {
+            "" => Game,
+            "\uE7FC" => Game,
+            "\uE8B1" => Target,
+            "\uE73E" => Trophy,
+            "\uE735" => Star,
+            _ when Options.Any(option => option.Emoji == emoji) => emoji,
+            _ => Game
+        };
+    }
+}
 
 public sealed class GameList : ObservableModel
 {
     private string _name = string.Empty;
     private string _color = "#CFC4F5";
-    private string _emoji = "🎮";
+    private string _emoji = ListEmojiCatalog.Game;
     private int _gameCount;
 
     public int Id { get; init; }
@@ -117,7 +181,7 @@ public sealed class GameList : ObservableModel
         get => _emoji;
         set
         {
-            if (SetField(ref _emoji, value))
+            if (SetField(ref _emoji, ListEmojiCatalog.Normalize(value)))
             {
                 OnPropertyChanged(nameof(DisplayName));
             }
@@ -148,6 +212,7 @@ public sealed class GameSearchResult
     public string Description { get; set; } = string.Empty;
     public string Category { get; init; } = string.Empty;
     public int? ReleaseYear { get; init; }
+    public string ReleaseDate { get; init; } = string.Empty;
     public string CoverUrl { get; init; } = string.Empty;
     public string CoverDisplay => CoverUrl;
     public string SourceDisplay => Source.ToLowerInvariant() switch
@@ -169,6 +234,7 @@ public sealed class AppSettings
     public string IgdbClientId { get; set; } = string.Empty;
     public string IgdbClientSecret { get; set; } = string.Empty;
     public string RawgApiKey { get; set; } = string.Empty;
+    public string Theme { get; set; } = "light";
 
     public bool HasIgdb =>
         !string.IsNullOrWhiteSpace(IgdbClientId) &&
@@ -181,10 +247,20 @@ public sealed class AppSettings
 public sealed class LibraryStats
 {
     public int TotalGames { get; init; }
+    public int UnratedGames { get; init; }
     public int ReviewedGames { get; init; }
+    public int UnorganizedGames { get; init; }
     public double? AverageRating { get; init; }
 
     public string AverageRatingDisplay => AverageRating?.ToString("0.0") ?? "-";
+}
+
+public enum GameLibraryFilter
+{
+    None,
+    Unrated,
+    Reviewed,
+    Unorganized
 }
 
 public sealed class ListMembershipOption : ObservableModel
@@ -194,7 +270,7 @@ public sealed class ListMembershipOption : ObservableModel
     public int ListId { get; init; }
     public string Name { get; init; } = string.Empty;
     public string Color { get; init; } = "#CFC4F5";
-    public string Emoji { get; init; } = "🎮";
+    public string Emoji { get; init; } = ListEmojiCatalog.Game;
 
     public bool IsSelected
     {

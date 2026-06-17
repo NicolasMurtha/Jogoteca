@@ -26,6 +26,7 @@ public sealed class DatabaseServiceTests : IDisposable
             Description = "Uma descrição curta.",
             Category = "RPG",
             ReleaseYear = 2026,
+            ReleaseDate = "2026-07-14",
             CoverUrl = "https://example.com/cover.jpg"
         };
 
@@ -60,11 +61,19 @@ public sealed class DatabaseServiceTests : IDisposable
         var savedGame = Assert.Single(favoriteGames);
         Assert.Equal(9.5, savedGame.UserRating);
         Assert.Equal("Excelente.", savedGame.Review);
+        Assert.Equal("2026-07-14", savedGame.ReleaseDate);
+        Assert.Equal("14/07/2026", savedGame.ReleaseDateDisplay);
 
         var stats = await database.GetStatsAsync();
         Assert.Equal(1, stats.TotalGames);
+        Assert.Equal(0, stats.UnratedGames);
         Assert.Equal(1, stats.ReviewedGames);
+        Assert.Equal(0, stats.UnorganizedGames);
         Assert.Equal(9.5, stats.AverageRating);
+
+        Assert.Empty(await database.GetGamesAsync(null, libraryFilter: GameLibraryFilter.Unrated));
+        Assert.Single(await database.GetGamesAsync(null, libraryFilter: GameLibraryFilter.Reviewed));
+        Assert.Empty(await database.GetGamesAsync(null, libraryFilter: GameLibraryFilter.Unorganized));
 
         await database.DeleteGameAsync(firstId);
         Assert.Empty(await database.GetGamesAsync(null));
@@ -91,8 +100,54 @@ public sealed class DatabaseServiceTests : IDisposable
         Assert.Equal(string.Empty, saved.Description);
         Assert.Equal(string.Empty, saved.Category);
         Assert.Null(saved.ReleaseYear);
+        Assert.Equal(string.Empty, saved.ReleaseDate);
+        Assert.Equal("Data desconhecida", saved.ReleaseDateDisplay);
         Assert.Equal(string.Empty, saved.CoverUrl);
         Assert.Empty((await database.GetMembershipsAsync(gameId)).Where(item => item.IsSelected));
+
+        var stats = await database.GetStatsAsync();
+        Assert.Equal(1, stats.UnratedGames);
+        Assert.Equal(0, stats.ReviewedGames);
+        Assert.Equal(1, stats.UnorganizedGames);
+        Assert.Single(await database.GetGamesAsync(null, libraryFilter: GameLibraryFilter.Unrated));
+        Assert.Empty(await database.GetGamesAsync(null, libraryFilter: GameLibraryFilter.Reviewed));
+        Assert.Single(await database.GetGamesAsync(null, libraryFilter: GameLibraryFilter.Unorganized));
+    }
+
+    [Fact]
+    public async Task DisplaysYearOnlyReleasesAsFirstDayOfYear()
+    {
+        var database = new DatabaseService(_testDirectory);
+        await database.InitializeAsync();
+
+        await database.UpsertGameAsync(
+            new GameSearchResult
+            {
+                Source = "manual",
+                ExternalId = Guid.NewGuid().ToString("N"),
+                Name = "Jogo com ano",
+                ReleaseYear = 1998
+            },
+            string.Empty);
+
+        var saved = Assert.Single(await database.GetGamesAsync(null));
+        Assert.Equal("01/01/1998", saved.ReleaseDateDisplay);
+    }
+
+    [Fact]
+    public async Task PersistsThemePreferenceInSettings()
+    {
+        var database = new DatabaseService(_testDirectory);
+        await database.InitializeAsync();
+        var settingsService = new SettingsService(database);
+
+        var defaultSettings = await settingsService.LoadAsync();
+        Assert.Equal("light", defaultSettings.Theme);
+
+        await settingsService.SaveAsync(new AppSettings { Theme = "dark" });
+
+        var savedSettings = await settingsService.LoadAsync();
+        Assert.Equal("dark", savedSettings.Theme);
     }
 
     [Fact]

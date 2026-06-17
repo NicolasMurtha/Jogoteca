@@ -24,6 +24,7 @@
             <Setter Property="Padding" Value="0" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Stretch" />
@@ -50,14 +51,25 @@
             <Setter Property="Margin" Value="0,0,9,0" />
         </Style>
 
+        <Style x:Key="EmojiText" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI Emoji" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="Width" Value="28" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="LineHeight" Value="22" />
+        </Style>
+
         <DataTemplate x:Key="DiscoveryGameCardTemplate">
             <Button Style="{StaticResource CardButton}"
                     Width="168"
                     Height="270"
                     Margin="0,0,12,5"
                     Click="CatalogCard_Click">
-                <Border Background="{StaticResource Surface}"
-                        BorderBrush="{StaticResource BorderBrush}"
+                <Border Background="{DynamicResource Surface}"
+                        BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1"
                         CornerRadius="14">
                     <Grid>
@@ -65,14 +77,14 @@
                             <RowDefinition Height="200" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
-                        <Border Background="#DDD9D3"
+                        <Border Background="{DynamicResource CoverPlaceholderBackground}"
                                 CornerRadius="13,13,0,0"
                                 ClipToBounds="True">
                             <Grid>
                                 <TextBlock FontFamily="Segoe Fluent Icons"
                                            Text="&#xE7FC;"
                                            FontSize="34"
-                                           Foreground="#AAA6A0"
+                                           Foreground="{DynamicResource CoverPlaceholderIcon}"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center" />
                                 <Border CornerRadius="13,13,0,0">
@@ -91,7 +103,7 @@
                             <TextBlock Text="{Binding YearDisplay}"
                                        Margin="0,4,0,0"
                                        FontSize="11"
-                                       Foreground="{StaticResource TextSecondary}" />
+                                       Foreground="{DynamicResource TextSecondary}" />
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -99,15 +111,16 @@
         </DataTemplate>
     </Window.Resources>
 
-    <Grid x:Name="RootGrid">
+    <Grid x:Name="RootGrid"
+          Background="{DynamicResource AppBackground}">
         <Grid.RowDefinitions>
             <RowDefinition Height="44" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0"
-                Background="#F7F6F4"
-                BorderBrush="{StaticResource BorderBrush}"
+                Background="{DynamicResource TitleBarBackground}"
+                BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,0,0,1"
                 MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
             <Grid>
@@ -124,17 +137,28 @@
                                VerticalAlignment="Center" />
                     <Border Margin="9,0,0,0"
                             Padding="7,2"
-                            Background="#E7E1F7"
+                            Background="{DynamicResource VersionBadgeBackground}"
                             CornerRadius="8">
                         <TextBlock Text="1.2.2"
                                    FontSize="10"
                                    FontWeight="Bold"
-                                   Foreground="#66568E" />
+                                   Foreground="{DynamicResource VersionBadgeForeground}" />
                     </Border>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal"
                             HorizontalAlignment="Right">
+                    <Button Style="{StaticResource IconButton}"
+                            Width="46"
+                            Height="43"
+                            Click="ToggleTheme_Click"
+                            ToolTip="{Binding ThemeToggleText}"
+                            AutomationProperties.Name="{Binding ThemeToggleText}"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                        <TextBlock FontFamily="Segoe Fluent Icons"
+                                   Text="{Binding ThemeToggleIcon}"
+                                   FontSize="13" />
+                    </Button>
                     <Button Style="{StaticResource IconButton}"
                             Width="46"
                             Height="43"
@@ -174,8 +198,8 @@
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0"
-                    Background="{StaticResource SidebarBackground}"
-                    BorderBrush="{StaticResource BorderBrush}"
+                    Background="{DynamicResource SidebarBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="0,0,1,0">
                 <Grid Margin="15,18,15,16">
                     <Grid.RowDefinitions>
@@ -189,20 +213,20 @@
                         <TextBlock Text="MEU BACKLOG"
                                    FontSize="10"
                                    FontWeight="Bold"
-                                   Foreground="{StaticResource TextSecondary}" />
+                                   Foreground="{DynamicResource TextSecondary}" />
                         <TextBlock Text="Descubra, guarde e organize"
                                    Margin="0,7,0,0"
                                    FontSize="13"
-                                   Foreground="{StaticResource TextSecondary}" />
+                                   Foreground="{DynamicResource TextSecondary}" />
                         <TextBlock Text="os jogos do seu jeito."
                                    FontSize="13"
-                                   Foreground="{StaticResource TextSecondary}" />
+                                   Foreground="{DynamicResource TextSecondary}" />
                     </StackPanel>
 
                     <StackPanel Grid.Row="1">
                         <Button x:Name="DiscoverButton"
                                 Style="{StaticResource NavButton}"
-                                Background="#D7D2E8"
+                                Background="{DynamicResource NavSelectedBackground}"
                                 Click="DiscoverButton_Click">
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -240,7 +264,7 @@
                                            FontWeight="SemiBold"
                                            VerticalAlignment="Center" />
                                 <Border Grid.Column="2"
-                                        Background="#C4B8E9"
+                                        Background="{DynamicResource NavCounterBackground}"
                                         Padding="7,2"
                                         CornerRadius="9">
                                     <TextBlock Text="{Binding TotalGameCount}"
@@ -260,7 +284,7 @@
                             <TextBlock Text="LISTAS"
                                        FontSize="10"
                                        FontWeight="Bold"
-                                       Foreground="{StaticResource TextSecondary}"
+                                       Foreground="{DynamicResource TextSecondary}"
                                        VerticalAlignment="Center" />
                             <Button x:Name="OpenCreateListButton"
                                     Style="{StaticResource IconButton}"
@@ -300,7 +324,11 @@
                                                              Height="14"
                                                              Fill="{Binding Color}" />
                                                     <TextBlock Text="{Binding Emoji}"
-                                                               FontSize="10"
+                                                               Style="{StaticResource EmojiText}"
+                                                               FontSize="11"
+                                                               Width="18"
+                                                               Height="18"
+                                                               LineHeight="16"
                                                                HorizontalAlignment="Center"
                                                                VerticalAlignment="Center" />
                                                 </Grid>
@@ -311,7 +339,7 @@
                                                 <TextBlock Grid.Column="2"
                                                            Text="{Binding CountDisplay}"
                                                            FontSize="11"
-                                                           Foreground="{StaticResource TextSecondary}"
+                                                           Foreground="{DynamicResource TextSecondary}"
                                                            VerticalAlignment="Center" />
                                             </Grid>
                                         </Button>
@@ -353,7 +381,7 @@
                                                FontWeight="SemiBold" />
                                     <TextBlock Text="Um catálogo para encontrar o próximo jogo da sua biblioteca."
                                                Margin="0,5,0,0"
-                                               Foreground="{StaticResource TextSecondary}"
+                                               Foreground="{DynamicResource TextSecondary}"
                                                FontSize="13" />
                                 </StackPanel>
                                 <Button Style="{StaticResource PrimaryButton}"
@@ -372,8 +400,8 @@
                             <Border x:Name="DiscoveryUnavailableState"
                                     Margin="0,26,6,0"
                                     Padding="28"
-                                    Background="#FFF3D7"
-                                    BorderBrush="#E9D18F"
+                                    Background="{DynamicResource WarningBackground}"
+                                    BorderBrush="{DynamicResource WarningBorder}"
                                     BorderThickness="1"
                                     CornerRadius="18"
                                     Visibility="Collapsed">
@@ -386,7 +414,7 @@
                                         <TextBlock x:Name="DiscoveryUnavailableMessage"
                                                    Text="Configure IGDB ou RAWG para ver recomendações e lançamentos. Sua biblioteca e o cadastro manual continuam funcionando normalmente."
                                                    Margin="0,7,0,0"
-                                                   Foreground="{StaticResource TextSecondary}"
+                                                   Foreground="{DynamicResource TextSecondary}"
                                                    TextWrapping="Wrap"
                                                    LineHeight="20" />
                                     </StackPanel>
@@ -402,7 +430,7 @@
                                 <TextBlock Margin="0,22,6,0"
                                            HorizontalAlignment="Right"
                                            Text="As faixas carregam mais jogos perto do fim e usam cache por 12 horas"
-                                           Foreground="{StaticResource TextSecondary}"
+                                           Foreground="{DynamicResource TextSecondary}"
                                            FontSize="11" />
 
                                 <ItemsControl ItemsSource="{Binding CatalogSections}">
@@ -416,7 +444,7 @@
                                                                FontWeight="SemiBold" />
                                                     <TextBlock Text="{Binding Subtitle}"
                                                                Margin="0,4,0,0"
-                                                               Foreground="{StaticResource TextSecondary}"
+                                                               Foreground="{DynamicResource TextSecondary}"
                                                                FontSize="12" />
                                                 </StackPanel>
 
@@ -425,6 +453,7 @@
                                                                   HorizontalScrollBarVisibility="Hidden"
                                                                   VerticalScrollBarVisibility="Disabled"
                                                                   PanningMode="HorizontalOnly"
+                                                                  PreviewMouseWheel="CatalogSectionScrollViewer_PreviewMouseWheel"
                                                                   ScrollChanged="CatalogSectionScrollViewer_ScrollChanged">
                                                         <ItemsControl ItemsSource="{Binding Games}"
                                                                       ItemTemplate="{StaticResource DiscoveryGameCardTemplate}">
@@ -440,18 +469,18 @@
                                                             Margin="0,0,50,8"
                                                             HorizontalAlignment="Right"
                                                             VerticalAlignment="Bottom"
-                                                            Background="#EEFBFAF8"
+                                                            Background="{DynamicResource LoadingPillBackground}"
                                                             CornerRadius="10"
                                                             Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibility}}"
                                                             Panel.ZIndex="3">
                                                         <StackPanel Orientation="Horizontal">
                                                             <TextBlock Text="•••"
                                                                        Margin="0,-3,7,0"
-                                                                       Foreground="#66568E"
+                                                                       Foreground="{DynamicResource AccentForeground}"
                                                                        FontWeight="Bold" />
                                                             <TextBlock Text="Carregando mais"
                                                                        FontSize="11"
-                                                                       Foreground="{StaticResource TextSecondary}" />
+                                                                       Foreground="{DynamicResource TextSecondary}" />
                                                         </StackPanel>
                                                     </Border>
 
@@ -461,7 +490,7 @@
                                                             Margin="4,0,0,0"
                                                             HorizontalAlignment="Left"
                                                             VerticalAlignment="Center"
-                                                            Background="#DDFBFAF8"
+                                                            Background="{DynamicResource FloatingButtonBackground}"
                                                             Tag="{Binding ElementName=SectionScrollViewer}"
                                                             Click="ScrollCatalogSectionLeft_Click"
                                                             Panel.ZIndex="2">
@@ -475,7 +504,7 @@
                                                             Margin="0,0,4,0"
                                                             HorizontalAlignment="Right"
                                                             VerticalAlignment="Center"
-                                                            Background="#DDFBFAF8"
+                                                            Background="{DynamicResource FloatingButtonBackground}"
                                                             Tag="{Binding ElementName=SectionScrollViewer}"
                                                             Click="ScrollCatalogSectionRight_Click"
                                                             Panel.ZIndex="2">
@@ -498,13 +527,13 @@
                                     <TextBlock Text="Carregando jogos..."
                                                Margin="0,10,0,0"
                                                TextAlignment="Center"
-                                               Foreground="{StaticResource TextSecondary}" />
+                                               Foreground="{DynamicResource TextSecondary}" />
                                 </StackPanel>
 
                                 <TextBlock x:Name="CatalogAttributionText"
                                            Margin="0,14,6,0"
                                            HorizontalAlignment="Right"
-                                           Foreground="{StaticResource TextSecondary}"
+                                           Foreground="{DynamicResource TextSecondary}"
                                            FontSize="11"
                                            Cursor="Hand"
                                            TextDecorations="Underline"
@@ -554,12 +583,12 @@
                                     <TextBlock FontFamily="Segoe Fluent Icons"
                                                Text="&#xE74D;"
                                                FontSize="14"
-                                               Foreground="#9A5555" />
+                                               Foreground="{DynamicResource DangerForeground}" />
                                 </Button>
                             </StackPanel>
                             <TextBlock Text="{Binding SelectedListSubtitle}"
                                        Margin="0,5,0,0"
-                                       Foreground="{StaticResource TextSecondary}"
+                                       Foreground="{DynamicResource TextSecondary}"
                                        FontSize="13" />
                         </StackPanel>
 
@@ -568,14 +597,14 @@
                                     VerticalAlignment="Center">
                             <Border Margin="0,0,12,0"
                                     Padding="3"
-                                    Background="{StaticResource SurfaceMuted}"
+                                    Background="{DynamicResource SurfaceMuted}"
                                     CornerRadius="11">
                                 <StackPanel Orientation="Horizontal">
                                     <Button x:Name="LibraryGridViewButton"
                                             Style="{StaticResource IconButton}"
                                             Width="36"
                                             Height="36"
-                                            Background="{StaticResource Surface}"
+                                            Background="{DynamicResource Surface}"
                                             Click="ShowLibraryGridView_Click"
                                             AutomationProperties.Name="Visualização em cards"
                                             ToolTip="Visualização em cards">
@@ -604,7 +633,7 @@
                                 <TextBlock x:Name="OnlineSearchPlaceholder"
                                            Text="Buscar novos jogos..."
                                            Margin="14,0"
-                                           Foreground="#9A969E"
+                                           Foreground="{DynamicResource SearchPlaceholderText}"
                                            VerticalAlignment="Center"
                                            IsHitTestVisible="False" />
                             </Grid>
@@ -629,23 +658,65 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <Border Background="#E7E1F7" CornerRadius="16" Padding="18,15" Margin="0,0,10,0">
-                            <StackPanel>
-                                <TextBlock Text="NA BIBLIOTECA" FontSize="10" FontWeight="Bold" Foreground="#746991" />
-                                <TextBlock Text="{Binding TotalGameCount}" Margin="0,5,0,0" FontSize="24" FontWeight="SemiBold" />
-                            </StackPanel>
+                        <Border Background="{DynamicResource StatLibraryBackground}" CornerRadius="16" Padding="18,15" Margin="0,0,10,0">
+                            <Grid>
+                                <StackPanel Margin="0,0,44,0">
+                                    <TextBlock Text="SEM NOTA" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource StatLibraryForeground}" />
+                                    <TextBlock Text="{Binding UnratedGameCount}" Margin="0,5,0,0" FontSize="24" FontWeight="SemiBold" />
+                                </StackPanel>
+                                <Button Style="{StaticResource IconButton}"
+                                        Width="32"
+                                        Height="32"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Center"
+                                        Background="{DynamicResource LoadingPillBackground}"
+                                        Click="ShowUnratedGames_Click"
+                                        ToolTip="Ver jogos sem nota">
+                                    <TextBlock FontFamily="Segoe Fluent Icons"
+                                               Text="&#xE8A7;"
+                                               FontSize="13" />
+                                </Button>
+                            </Grid>
                         </Border>
-                        <Border Grid.Column="1" Background="#DDEEE7" CornerRadius="16" Padding="18,15" Margin="5,0">
-                            <StackPanel>
-                                <TextBlock Text="MÉDIA DAS NOTAS" FontSize="10" FontWeight="Bold" Foreground="#56796D" />
-                                <TextBlock Text="{Binding AverageRating}" Margin="0,5,0,0" FontSize="24" FontWeight="SemiBold" />
-                            </StackPanel>
+                        <Border Grid.Column="1" Background="{DynamicResource StatRatingBackground}" CornerRadius="16" Padding="18,15" Margin="5,0">
+                            <Grid>
+                                <StackPanel Margin="0,0,44,0">
+                                    <TextBlock Text="REVIEWS ESCRITAS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource StatRatingForeground}" />
+                                    <TextBlock Text="{Binding ReviewedGameCount}" Margin="0,5,0,0" FontSize="24" FontWeight="SemiBold" />
+                                </StackPanel>
+                                <Button Style="{StaticResource IconButton}"
+                                        Width="32"
+                                        Height="32"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Center"
+                                        Background="{DynamicResource LoadingPillBackground}"
+                                        Click="ShowReviewedGames_Click"
+                                        ToolTip="Ver jogos com review">
+                                    <TextBlock FontFamily="Segoe Fluent Icons"
+                                               Text="&#xE8A7;"
+                                               FontSize="13" />
+                                </Button>
+                            </Grid>
                         </Border>
-                        <Border Grid.Column="2" Background="#F6E2DA" CornerRadius="16" Padding="18,15" Margin="10,0,0,0">
-                            <StackPanel>
-                                <TextBlock Text="REVIEWS ESCRITAS" FontSize="10" FontWeight="Bold" Foreground="#956E5E" />
-                                <TextBlock Text="{Binding ReviewedGameCount}" Margin="0,5,0,0" FontSize="24" FontWeight="SemiBold" />
-                            </StackPanel>
+                        <Border Grid.Column="2" Background="{DynamicResource StatReviewBackground}" CornerRadius="16" Padding="18,15" Margin="10,0,0,0">
+                            <Grid>
+                                <StackPanel Margin="0,0,44,0">
+                                    <TextBlock Text="NÃO ORGANIZADOS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource StatReviewForeground}" />
+                                    <TextBlock Text="{Binding UnorganizedGameCount}" Margin="0,5,0,0" FontSize="24" FontWeight="SemiBold" />
+                                </StackPanel>
+                                <Button Style="{StaticResource IconButton}"
+                                        Width="32"
+                                        Height="32"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Center"
+                                        Background="{DynamicResource LoadingPillBackground}"
+                                        Click="ShowUnorganizedGames_Click"
+                                        ToolTip="Ver jogos sem lista">
+                                    <TextBlock FontFamily="Segoe Fluent Icons"
+                                               Text="&#xE8A7;"
+                                               FontSize="13" />
+                                </Button>
+                            </Grid>
                         </Border>
                     </Grid>
 
@@ -676,8 +747,8 @@
                                                     Click="GameCard_Click"
                                                     PreviewMouseLeftButtonDown="GameCard_PreviewMouseLeftButtonDown"
                                                     PreviewMouseMove="GameCard_PreviewMouseMove">
-                                                <Border Background="{StaticResource Surface}"
-                                                        BorderBrush="{StaticResource BorderBrush}"
+                                                <Border Background="{DynamicResource Surface}"
+                                                        BorderBrush="{DynamicResource BorderBrush}"
                                                         BorderThickness="1"
                                                         CornerRadius="14">
                                                     <Grid>
@@ -685,14 +756,14 @@
                                                             <RowDefinition Height="224" />
                                                             <RowDefinition Height="*" />
                                                         </Grid.RowDefinitions>
-                                                        <Border Background="#DDD9D3"
+                                                        <Border Background="{DynamicResource CoverPlaceholderBackground}"
                                                                 CornerRadius="13,13,0,0"
                                                                 ClipToBounds="True">
                                                             <Grid>
                                                                 <TextBlock FontFamily="Segoe Fluent Icons"
                                                                            Text="&#xE7FC;"
                                                                            FontSize="35"
-                                                                           Foreground="#AAA6A0"
+                                                                           Foreground="{DynamicResource CoverPlaceholderIcon}"
                                                                            HorizontalAlignment="Center"
                                                                            VerticalAlignment="Center" />
                                                                 <Border CornerRadius="13,13,0,0">
@@ -707,16 +778,16 @@
                                                                 VerticalAlignment="Top"
                                                                 Margin="0,10,9,0"
                                                                 Padding="8,4"
-                                                                Background="#EE29282D"
+                                                                Background="{DynamicResource RatingOverlayBackground}"
                                                                 CornerRadius="10">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock FontFamily="Segoe Fluent Icons"
                                                                            Text="&#xE735;"
-                                                                           Foreground="#F0D791"
+                                                                           Foreground="{DynamicResource StarBrush}"
                                                                            FontSize="11"
                                                                            Margin="0,0,4,0" />
                                                                 <TextBlock Text="{Binding RatingDisplay}"
-                                                                           Foreground="White"
+                                                                           Foreground="{DynamicResource RatingOverlayForeground}"
                                                                            FontSize="11"
                                                                            FontWeight="SemiBold" />
                                                             </StackPanel>
@@ -728,12 +799,12 @@
                                                                        TextTrimming="CharacterEllipsis" />
                                                             <TextBlock Text="{Binding YearDisplay}"
                                                                        Margin="0,5,0,0"
-                                                                       Foreground="{StaticResource TextSecondary}"
+                                                                       Foreground="{DynamicResource TextSecondary}"
                                                                        FontSize="11"
                                                                        TextTrimming="CharacterEllipsis" />
                                                             <TextBlock Text="{Binding CategoryDisplay}"
                                                                        Margin="0,2,0,0"
-                                                                       Foreground="{StaticResource TextSecondary}"
+                                                                       Foreground="{DynamicResource TextSecondary}"
                                                                        FontSize="11"
                                                                        TextTrimming="CharacterEllipsis" />
                                                         </StackPanel>
@@ -751,25 +822,26 @@
                                                         Width="32"
                                                         Height="32"
                                                         Margin="0,0,0,6"
-                                                        Background="#F3EEE6"
+                                                        Background="{DynamicResource ActionNeutralBackground}"
                                                         ToolTip="Retirar desta lista"
                                                         Visibility="{Binding DataContext.IsViewingList, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
                                                         Click="RemoveGameFromCurrentList_Click">
                                                     <TextBlock Text="−"
                                                                FontSize="19"
                                                                FontWeight="Bold"
-                                                               Foreground="#7C6B55" />
+                                                               Foreground="{DynamicResource ActionNeutralForeground}" />
                                                 </Button>
                                                 <Button Style="{StaticResource IconButton}"
                                                         Width="32"
                                                         Height="32"
-                                                        Background="#F3DEDA"
+                                                        Background="{DynamicResource ActionDangerBackground}"
                                                         ToolTip="Remover da biblioteca"
+                                                        Visibility="{Binding DataContext.IsViewingLibrary, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
                                                         Click="DeleteGameFromCard_Click">
                                                     <TextBlock Text="×"
                                                                FontSize="20"
                                                                FontWeight="Bold"
-                                                               Foreground="#B23A3A" />
+                                                               Foreground="{DynamicResource ActionDangerForeground}" />
                                                 </Button>
                                             </StackPanel>
                                         </Grid>
@@ -798,32 +870,50 @@
                                       Visibility="Collapsed">
                             <StackPanel>
                                 <Border Margin="0,0,0,8"
-                                        Padding="14,9"
-                                        Background="{StaticResource SurfaceMuted}"
+                                        Padding="0"
+                                        Background="{DynamicResource SurfaceMuted}"
                                         CornerRadius="11">
-                                    <Grid>
+                                    <Grid Margin="12,9">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="74" />
+                                            <ColumnDefinition Width="62" />
                                             <ColumnDefinition Width="240" />
+                                            <ColumnDefinition Width="135" />
                                             <ColumnDefinition Width="110" />
                                             <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="82" />
+                                            <ColumnDefinition Width="70" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="1"
-                                                   Text="JOGO"
-                                                   FontSize="10"
-                                                   FontWeight="Bold"
-                                                   Foreground="{StaticResource TextSecondary}" />
-                                        <TextBlock Grid.Column="2"
-                                                   Text="SUA NOTA"
-                                                   FontSize="10"
-                                                   FontWeight="Bold"
-                                                   Foreground="{StaticResource TextSecondary}" />
+                                        <Button Grid.Column="1"
+                                                Style="{StaticResource CardButton}"
+                                                HorizontalAlignment="Left"
+                                                Margin="0,0,18,0"
+                                                Click="SortByNameHeader_Click"
+                                                ToolTip="Ordenar por nome">
+                                            <TextBlock Text="Nome"
+                                                       FontSize="10"
+                                                       FontWeight="Bold"
+                                                       Foreground="{DynamicResource TextSecondary}" />
+                                        </Button>
+                                        <Button Grid.Column="2"
+                                                Style="{StaticResource CardButton}"
+                                                HorizontalAlignment="Left"
+                                                Click="SortByReleaseHeader_Click"
+                                                ToolTip="Ordenar por lançamento">
+                                            <TextBlock Text="Lançamento"
+                                                       FontSize="10"
+                                                       FontWeight="Bold"
+                                                       Foreground="{DynamicResource TextSecondary}" />
+                                        </Button>
                                         <TextBlock Grid.Column="3"
-                                                   Text="REVIEW"
+                                                   Text="Nota"
                                                    FontSize="10"
                                                    FontWeight="Bold"
-                                                   Foreground="{StaticResource TextSecondary}" />
+                                                   Foreground="{DynamicResource TextSecondary}" />
+                                        <TextBlock Grid.Column="4"
+                                                   Text="Observação"
+                                                   FontSize="10"
+                                                   FontWeight="Bold"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   Margin="0,0,18,0" />
                                     </Grid>
                                 </Border>
 
@@ -837,14 +927,14 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Border Margin="0,0,0,8"
-                                                    Background="{StaticResource Surface}"
-                                                    BorderBrush="{StaticResource BorderBrush}"
+                                                    Background="{DynamicResource Surface}"
+                                                    BorderBrush="{DynamicResource BorderBrush}"
                                                     BorderThickness="1"
                                                     CornerRadius="13">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="82" />
+                                                        <ColumnDefinition Width="70" />
                                                     </Grid.ColumnDefinitions>
 
                                                     <Button Grid.Column="0"
@@ -857,6 +947,7 @@
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="62" />
                                                                 <ColumnDefinition Width="240" />
+                                                                <ColumnDefinition Width="135" />
                                                                 <ColumnDefinition Width="110" />
                                                                 <ColumnDefinition Width="*" />
                                                             </Grid.ColumnDefinitions>
@@ -864,14 +955,14 @@
                                                             <Border Width="52"
                                                                     Height="72"
                                                                     HorizontalAlignment="Left"
-                                                                    Background="#DDD9D3"
+                                                                    Background="{DynamicResource CoverPlaceholderBackground}"
                                                                     CornerRadius="8"
                                                                     ClipToBounds="True">
                                                                 <Grid>
                                                                     <TextBlock FontFamily="Segoe Fluent Icons"
                                                                                Text="&#xE7FC;"
                                                                                FontSize="22"
-                                                                               Foreground="#AAA6A0"
+                                                                               Foreground="{DynamicResource CoverPlaceholderIcon}"
                                                                                HorizontalAlignment="Center"
                                                                                VerticalAlignment="Center" />
                                                                     <Border CornerRadius="8">
@@ -891,21 +982,25 @@
                                                                            FontWeight="SemiBold"
                                                                            TextTrimming="CharacterEllipsis" />
                                                                 <TextBlock Margin="0,5,0,0"
-                                                                           Foreground="{StaticResource TextSecondary}"
+                                                                           Foreground="{DynamicResource TextSecondary}"
                                                                            FontSize="11"
-                                                                           TextTrimming="CharacterEllipsis">
-                                                                    <Run Text="{Binding YearDisplay, Mode=OneWay}" />
-                                                                    <Run Text=" • " />
-                                                                    <Run Text="{Binding CategoryDisplay, Mode=OneWay}" />
-                                                                </TextBlock>
+                                                                           Text="{Binding CategoryDisplay}"
+                                                                           TextTrimming="CharacterEllipsis" />
                                                             </StackPanel>
 
-                                                            <StackPanel Grid.Column="2"
+                                                            <TextBlock Grid.Column="2"
+                                                                       Text="{Binding ReleaseDateDisplay}"
+                                                                       VerticalAlignment="Center"
+                                                                       Foreground="{DynamicResource TextSecondary}"
+                                                                       FontSize="12"
+                                                                       TextTrimming="CharacterEllipsis" />
+
+                                                            <StackPanel Grid.Column="3"
                                                                         Orientation="Horizontal"
                                                                         VerticalAlignment="Center">
                                                                 <TextBlock FontFamily="Segoe Fluent Icons"
                                                                            Text="&#xE735;"
-                                                                           Foreground="#A78024"
+                                                                           Foreground="{DynamicResource StarMutedBrush}"
                                                                            FontSize="13"
                                                                            Margin="0,0,6,0" />
                                                                 <TextBlock Text="{Binding RatingDisplay}"
@@ -913,11 +1008,11 @@
                                                                            FontWeight="SemiBold" />
                                                             </StackPanel>
 
-                                                            <TextBlock Grid.Column="3"
+                                                            <TextBlock Grid.Column="4"
                                                                        Margin="0,0,18,0"
                                                                        Text="{Binding ReviewDisplay}"
                                                                        VerticalAlignment="Center"
-                                                                       Foreground="{StaticResource TextSecondary}"
+                                                                       Foreground="{DynamicResource TextSecondary}"
                                                                        FontSize="12"
                                                                        TextTrimming="CharacterEllipsis" />
                                                         </Grid>
@@ -931,25 +1026,26 @@
                                                                 Width="32"
                                                                 Height="32"
                                                                 Margin="0,0,5,0"
-                                                                Background="#F3EEE6"
+                                                                Background="{DynamicResource ActionNeutralBackground}"
                                                                 ToolTip="Retirar desta lista"
                                                                 Visibility="{Binding DataContext.IsViewingList, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
                                                                 Click="RemoveGameFromCurrentList_Click">
                                                             <TextBlock Text="−"
                                                                        FontSize="19"
                                                                        FontWeight="Bold"
-                                                                       Foreground="#7C6B55" />
+                                                                       Foreground="{DynamicResource ActionNeutralForeground}" />
                                                         </Button>
                                                         <Button Style="{StaticResource IconButton}"
                                                                 Width="32"
                                                                 Height="32"
-                                                                Background="#F3DEDA"
+                                                                Background="{DynamicResource ActionDangerBackground}"
                                                                 ToolTip="Remover da biblioteca"
+                                                                Visibility="{Binding DataContext.IsViewingLibrary, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
                                                                 Click="DeleteGameFromCard_Click">
                                                             <TextBlock Text="×"
                                                                        FontSize="20"
                                                                        FontWeight="Bold"
-                                                                       Foreground="#B23A3A" />
+                                                                       Foreground="{DynamicResource ActionDangerForeground}" />
                                                         </Button>
                                                     </StackPanel>
                                                 </Grid>
@@ -967,13 +1063,13 @@
                                     Visibility="Collapsed">
                             <Border Width="76"
                                     Height="76"
-                                    Background="#E7E1F7"
+                                    Background="{DynamicResource EmptyIconBackground}"
                                     CornerRadius="22"
                                     HorizontalAlignment="Center">
                                 <TextBlock FontFamily="Segoe Fluent Icons"
                                            Text="&#xE8F1;"
                                            FontSize="30"
-                                           Foreground="#8D7CBE"
+                                           Foreground="{DynamicResource EmptyIconForeground}"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center" />
                             </Border>
@@ -986,7 +1082,7 @@
                             <TextBlock x:Name="EmptyLibraryMessage"
                                        Text="Adicione jogos à biblioteca. Depois, arraste os cards entre as listas como em um kanban."
                                        Margin="0,8,0,0"
-                                       Foreground="{StaticResource TextSecondary}"
+                                       Foreground="{DynamicResource TextSecondary}"
                                        TextWrapping="Wrap"
                                        TextAlignment="Center"
                                        LineHeight="20" />
@@ -1003,13 +1099,13 @@
 
         <Grid x:Name="SearchOverlay"
               Grid.RowSpan="2"
-              Background="#7629282D"
+              Background="{DynamicResource OverlayScrim}"
               Visibility="Collapsed"
               Panel.ZIndex="20">
             <Border Width="760"
                     HorizontalAlignment="Right"
-                    Background="{StaticResource AppBackground}"
-                    BorderBrush="{StaticResource BorderBrush}"
+                    Background="{DynamicResource AppBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1,0,0,0">
                 <Grid Margin="28,25">
                     <Grid.RowDefinitions>
@@ -1026,7 +1122,7 @@
                                        Text="Busque online ou cadastre as informações manualmente."
                                        Margin="0,5,0,0"
                                        FontSize="13"
-                                       Foreground="{StaticResource TextSecondary}" />
+                                       Foreground="{DynamicResource TextSecondary}" />
                         </StackPanel>
                         <Button Style="{StaticResource IconButton}"
                                 HorizontalAlignment="Right"
@@ -1061,7 +1157,7 @@
                             <TextBlock x:Name="OverlaySearchPlaceholder"
                                        Text="Nome do jogo..."
                                        Margin="14,0"
-                                       Foreground="#9A969E"
+                                       Foreground="{DynamicResource SearchPlaceholderText}"
                                        VerticalAlignment="Center"
                                        IsHitTestVisible="False" />
                         </Grid>
@@ -1080,8 +1176,8 @@
                                     <DataTemplate>
                                         <Border Margin="0,0,5,12"
                                                 Padding="12"
-                                                Background="{StaticResource Surface}"
-                                                BorderBrush="{StaticResource BorderBrush}"
+                                                Background="{DynamicResource Surface}"
+                                                BorderBrush="{DynamicResource BorderBrush}"
                                                 BorderThickness="1"
                                                 CornerRadius="15">
                                             <Grid>
@@ -1092,13 +1188,13 @@
                                                 </Grid.ColumnDefinitions>
                                                 <Border Width="78"
                                                         Height="105"
-                                                        Background="#DDD9D3"
+                                                        Background="{DynamicResource CoverPlaceholderBackground}"
                                                         CornerRadius="10"
                                                         ClipToBounds="True">
                                                     <Grid>
                                                         <TextBlock FontFamily="Segoe Fluent Icons"
                                                                    Text="&#xE7FC;"
-                                                                   Foreground="#AAA6A0"
+                                                                   Foreground="{DynamicResource CoverPlaceholderIcon}"
                                                                    HorizontalAlignment="Center"
                                                                    VerticalAlignment="Center" />
                                                         <Border CornerRadius="10">
@@ -1118,12 +1214,12 @@
                                                                Margin="0,5,0,0"
                                                                FontSize="10"
                                                                FontWeight="Bold"
-                                                               Foreground="#66568E" />
+                                                               Foreground="{DynamicResource AccentForeground}" />
                                                     <TextBlock Text="{Binding DescriptionDisplay}"
                                                                Margin="0,8,0,0"
                                                                MaxHeight="43"
                                                                FontSize="12"
-                                                               Foreground="{StaticResource TextSecondary}"
+                                                               Foreground="{DynamicResource TextSecondary}"
                                                                TextWrapping="Wrap"
                                                                TextTrimming="CharacterEllipsis" />
                                                 </StackPanel>
@@ -1146,7 +1242,7 @@
                             <TextBlock FontFamily="Segoe Fluent Icons"
                                        Text="&#xE721;"
                                        FontSize="31"
-                                       Foreground="#A09BA5"
+                                       Foreground="{DynamicResource EmptyGlyphForeground}"
                                        HorizontalAlignment="Center" />
                             <TextBlock x:Name="SearchEmptyTitle"
                                        Text="Busque pelo nome de um jogo"
@@ -1156,7 +1252,7 @@
                                        TextAlignment="Center" />
                             <TextBlock x:Name="SearchEmptyMessage"
                                        Margin="0,6,0,0"
-                                       Foreground="{StaticResource TextSecondary}"
+                                       Foreground="{DynamicResource TextSecondary}"
                                        TextAlignment="Center"
                                        TextWrapping="Wrap" />
                             <Button Style="{StaticResource SecondaryButton}"
@@ -1172,7 +1268,7 @@
                             <ProgressBar Width="180" Height="5" IsIndeterminate="True" />
                             <TextBlock Text="Consultando as fontes..."
                                        Margin="0,13,0,0"
-                                       Foreground="{StaticResource TextSecondary}"
+                                       Foreground="{DynamicResource TextSecondary}"
                                        TextAlignment="Center" />
                         </StackPanel>
                     </Grid>
@@ -1182,12 +1278,12 @@
 
         <Grid x:Name="ManualGameOverlay"
               Grid.RowSpan="2"
-              Background="#7629282D"
+              Background="{DynamicResource OverlayScrim}"
               Visibility="Collapsed"
               Panel.ZIndex="25">
             <Border Width="610"
                     Padding="28"
-                    Background="{StaticResource AppBackground}"
+                    Background="{DynamicResource AppBackground}"
                     CornerRadius="22"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center">
@@ -1204,7 +1300,7 @@
                                            FontWeight="SemiBold" />
                                 <TextBlock Text="Somente o nome é obrigatório. O jogo entra direto na biblioteca."
                                            Margin="0,5,0,0"
-                                           Foreground="{StaticResource TextSecondary}" />
+                                           Foreground="{DynamicResource TextSecondary}" />
                             </StackPanel>
                             <Button Style="{StaticResource IconButton}"
                                     HorizontalAlignment="Right"
@@ -1265,14 +1361,14 @@
 
         <Grid x:Name="CatalogDetailOverlay"
               Grid.RowSpan="2"
-              Background="#7629282D"
+              Background="{DynamicResource OverlayScrim}"
               Visibility="Collapsed"
               Panel.ZIndex="27">
             <Border x:Name="CatalogDetailPanel"
                     Width="760"
                     Height="520"
                     Padding="26"
-                    Background="{StaticResource AppBackground}"
+                    Background="{DynamicResource AppBackground}"
                     CornerRadius="22"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center">
@@ -1284,14 +1380,14 @@
                     <Border Width="205"
                             Height="300"
                             VerticalAlignment="Top"
-                            Background="#DDD9D3"
+                            Background="{DynamicResource CoverPlaceholderBackground}"
                             CornerRadius="15"
                             ClipToBounds="True">
                         <Grid>
                             <TextBlock FontFamily="Segoe Fluent Icons"
                                        Text="&#xE7FC;"
                                        FontSize="36"
-                                       Foreground="#AAA6A0"
+                                       Foreground="{DynamicResource CoverPlaceholderIcon}"
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center" />
                             <Border CornerRadius="15">
@@ -1318,7 +1414,7 @@
                                                Margin="0,6,0,0"
                                                FontSize="10"
                                                FontWeight="Bold"
-                                               Foreground="#66568E" />
+                                               Foreground="{DynamicResource AccentForeground}" />
                                 </StackPanel>
                                 <Button Style="{StaticResource IconButton}"
                                         HorizontalAlignment="Right"
@@ -1329,18 +1425,18 @@
                             </Grid>
                             <TextBlock Text="{Binding YearDisplay}"
                                        Margin="0,17,0,0"
-                                       Foreground="{StaticResource TextSecondary}" />
+                                       Foreground="{DynamicResource TextSecondary}" />
                             <TextBlock Text="{Binding CategoryDisplay}"
                                        Margin="0,4,0,0"
-                                       Foreground="{StaticResource TextSecondary}" />
+                                       Foreground="{DynamicResource TextSecondary}" />
                             <TextBlock Text="SOBRE"
                                        Margin="0,24,0,7"
                                        FontSize="10"
                                        FontWeight="Bold"
-                                       Foreground="{StaticResource TextSecondary}" />
+                                       Foreground="{DynamicResource TextSecondary}" />
                             <ScrollViewer Height="205" VerticalScrollBarVisibility="Auto">
                                 <TextBlock Text="{Binding DescriptionDisplay}"
-                                           Foreground="{StaticResource TextSecondary}"
+                                           Foreground="{DynamicResource TextSecondary}"
                                            TextWrapping="Wrap"
                                            LineHeight="20" />
                             </ScrollViewer>
@@ -1364,14 +1460,14 @@
 
         <Grid x:Name="DetailOverlay"
               Grid.RowSpan="2"
-              Background="#7629282D"
+              Background="{DynamicResource OverlayScrim}"
               Visibility="Collapsed"
               Panel.ZIndex="30">
             <Border x:Name="DetailPanel"
                     Width="850"
                     Height="610"
                     Padding="26"
-                    Background="{StaticResource AppBackground}"
+                    Background="{DynamicResource AppBackground}"
                     CornerRadius="22"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center">
@@ -1388,14 +1484,14 @@
                         <Border Width="205"
                                 Height="285"
                                 VerticalAlignment="Top"
-                                Background="#DDD9D3"
+                                Background="{DynamicResource CoverPlaceholderBackground}"
                                 CornerRadius="15"
                                 ClipToBounds="True">
                             <Grid>
                                 <TextBlock FontFamily="Segoe Fluent Icons"
                                            Text="&#xE7FC;"
                                            FontSize="36"
-                                           Foreground="#AAA6A0"
+                                           Foreground="{DynamicResource CoverPlaceholderIcon}"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center" />
                                 <Border CornerRadius="15">
@@ -1416,10 +1512,10 @@
                                                TextWrapping="Wrap" />
                                     <TextBlock Text="{Binding YearDisplay}"
                                                Margin="0,6,0,0"
-                                               Foreground="{StaticResource TextSecondary}" />
+                                               Foreground="{DynamicResource TextSecondary}" />
                                     <TextBlock Text="{Binding CategoryDisplay}"
                                                Margin="0,3,0,0"
-                                               Foreground="{StaticResource TextSecondary}" />
+                                               Foreground="{DynamicResource TextSecondary}" />
                                 </StackPanel>
                                 <Button Style="{StaticResource IconButton}"
                                         HorizontalAlignment="Right"
@@ -1429,12 +1525,12 @@
                                 </Button>
                             </Grid>
 
-                            <TextBlock Text="SOBRE" Margin="0,20,0,7" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextSecondary}" />
+                            <TextBlock Text="SOBRE" Margin="0,20,0,7" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" />
                             <TextBlock Text="{Binding Description}"
                                        Height="66"
                                        TextWrapping="Wrap"
                                        TextTrimming="CharacterEllipsis"
-                                       Foreground="{StaticResource TextSecondary}"
+                                       Foreground="{DynamicResource TextSecondary}"
                                        LineHeight="19" />
 
                             <Grid Margin="0,18,0,0">
@@ -1443,7 +1539,7 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel>
-                                    <TextBlock Text="SUA NOTA" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBlock Text="SUA NOTA" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" />
                                     <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
                                         <Slider x:Name="RatingSlider"
                                                 Width="155"
@@ -1452,7 +1548,7 @@
                                                 TickFrequency="0.5"
                                                 IsSnapToTickEnabled="True"
                                                 ValueChanged="RatingSlider_ValueChanged" />
-                                        <Border Margin="10,0,0,0" Width="43" Height="30" Background="#E7E1F7" CornerRadius="10">
+                                        <Border Margin="10,0,0,0" Width="43" Height="30" Background="{DynamicResource RatingValueBackground}" CornerRadius="10">
                                             <TextBlock x:Name="RatingValueText"
                                                        Text="0.0"
                                                        FontWeight="SemiBold"
@@ -1468,7 +1564,7 @@
                                 </StackPanel>
 
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock Text="LISTAS" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBlock Text="LISTAS" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" />
                                     <ItemsControl ItemsSource="{Binding MembershipOptions}" Margin="0,7,0,0">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
@@ -1479,7 +1575,13 @@
                                             <DataTemplate>
                                                 <CheckBox IsChecked="{Binding IsSelected}" Margin="0,0,13,7">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="{Binding Emoji}" Margin="0,0,5,0" FontSize="12" />
+                                                        <TextBlock Text="{Binding Emoji}"
+                                                                   Style="{StaticResource EmojiText}"
+                                                                   Width="22"
+                                                                   Height="18"
+                                                                   FontSize="12"
+                                                                   LineHeight="17"
+                                                                   Margin="0,0,5,0" />
                                                         <Ellipse Width="8" Height="8" Margin="0,0,6,0" Fill="{Binding Color}" />
                                                         <TextBlock Text="{Binding Name}" FontSize="12" />
                                                     </StackPanel>
@@ -1490,7 +1592,7 @@
                                 </StackPanel>
                             </Grid>
 
-                            <TextBlock Text="SUA REVIEW" Margin="0,18,0,7" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextSecondary}" />
+                            <TextBlock Text="SUA REVIEW" Margin="0,18,0,7" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" />
                             <TextBox x:Name="ReviewTextBox"
                                      Style="{StaticResource TextInput}"
                                      Height="105"
@@ -1521,12 +1623,12 @@
 
         <Grid x:Name="SettingsOverlay"
               Grid.RowSpan="2"
-              Background="#7629282D"
+              Background="{DynamicResource OverlayScrim}"
               Visibility="Collapsed"
               Panel.ZIndex="40">
             <Border Width="660"
                     Padding="28"
-                    Background="{StaticResource AppBackground}"
+                    Background="{DynamicResource AppBackground}"
                     CornerRadius="22"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center">
@@ -1538,12 +1640,12 @@
                     <StackPanel>
                         <Grid>
                             <StackPanel>
-                                <TextBlock Text="Configurações das APIs"
+                                <TextBlock Text="Configurações"
                                            FontSize="25"
                                            FontWeight="SemiBold" />
-                                <TextBlock Text="Use uma ou as duas fontes. As credenciais ficam protegidas pelo Windows."
+                                <TextBlock Text="Ajuste a aparência e as fontes online. As credenciais ficam protegidas pelo Windows."
                                            Margin="0,5,0,0"
-                                           Foreground="{StaticResource TextSecondary}" />
+                                           Foreground="{DynamicResource TextSecondary}" />
                             </StackPanel>
                             <Button Style="{StaticResource IconButton}"
                                     HorizontalAlignment="Right"
@@ -1552,14 +1654,37 @@
                             </Button>
                         </Grid>
 
-                        <Border Margin="0,23,0,0" Padding="18" Background="#E7E1F7" CornerRadius="15">
+                        <Border Margin="0,23,0,0"
+                                Padding="18"
+                                Background="{DynamicResource Surface}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="15">
+                            <Grid>
+                                <StackPanel Margin="0,0,170,0">
+                                    <TextBlock Text="Aparência"
+                                               FontSize="16"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Text="Alterne entre o tema claro e escuro."
+                                               Margin="0,5,0,0"
+                                               Foreground="{DynamicResource TextSecondary}" />
+                                </StackPanel>
+                                <Button Style="{StaticResource SecondaryButton}"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Center"
+                                        Click="ToggleTheme_Click"
+                                        Content="{Binding ThemeToggleText}" />
+                            </Grid>
+                        </Border>
+
+                        <Border Margin="0,12,0,0" Padding="18" Background="{DynamicResource StatLibraryBackground}" CornerRadius="15">
                             <StackPanel>
                                 <Grid>
                                     <TextBlock Text="IGDB" FontSize="16" FontWeight="SemiBold" />
                                     <Button HorizontalAlignment="Right"
                                             Background="Transparent"
                                             BorderThickness="0"
-                                            Foreground="#66568E"
+                                            Foreground="{DynamicResource LinkAccent}"
                                             Cursor="Hand"
                                             Click="OpenIgdbDocs_Click"
                                             Content="Como obter credenciais ↗" />
@@ -1571,14 +1696,14 @@
                             </StackPanel>
                         </Border>
 
-                        <Border Margin="0,12,0,0" Padding="18" Background="#DDEEE7" CornerRadius="15">
+                        <Border Margin="0,12,0,0" Padding="18" Background="{DynamicResource StatRatingBackground}" CornerRadius="15">
                             <StackPanel>
                                 <Grid>
                                     <TextBlock Text="RAWG" FontSize="16" FontWeight="SemiBold" />
                                     <Button HorizontalAlignment="Right"
                                             Background="Transparent"
                                             BorderThickness="0"
-                                            Foreground="#456E60"
+                                            Foreground="{DynamicResource StatRatingForeground}"
                                             Cursor="Hand"
                                             Click="OpenRawgDocs_Click"
                                             Content="Obter uma chave ↗" />
@@ -1610,12 +1735,12 @@
 
         <Grid x:Name="ListEditorOverlay"
               Grid.RowSpan="2"
-              Background="#7629282D"
+              Background="{DynamicResource OverlayScrim}"
               Visibility="Collapsed"
               Panel.ZIndex="50">
             <Border Width="470"
                     Padding="27"
-                    Background="{StaticResource AppBackground}"
+                    Background="{DynamicResource AppBackground}"
                     CornerRadius="20"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center">
@@ -1627,21 +1752,44 @@
                     <TextBlock x:Name="ListEditorSubtitle"
                                Text="Personalize o nome, o emoji e a cor da lista."
                                Margin="0,6,0,18"
-                               Foreground="{StaticResource TextSecondary}"
+                               Foreground="{DynamicResource TextSecondary}"
                                TextWrapping="Wrap" />
 
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="72" />
+                            <ColumnDefinition Width="170" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Margin="0,0,10,0">
                             <TextBlock Text="Emoji" Margin="0,0,0,6" FontSize="11" FontWeight="SemiBold" />
-                            <TextBox x:Name="ListEmojiBox"
-                                     Style="{StaticResource TextInput}"
-                                     MaxLength="4"
-                                     TextAlignment="Center"
-                                     FontSize="20" />
+                            <ComboBox x:Name="ListEmojiComboBox"
+                                      ItemsSource="{Binding ListEmojiOptions}"
+                                      SelectedValue="{Binding SelectedListEmoji, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      SelectedValuePath="Emoji"
+                                      Height="42"
+                                      Width="86"
+                                      HorizontalAlignment="Left"
+                                      Padding="8,4"
+                                      Background="{DynamicResource Surface}"
+                                      BorderBrush="{DynamicResource BorderBrush}"
+                                      Foreground="{DynamicResource TextPrimary}">
+                                <ComboBox.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Width="168" />
+                                    </ItemsPanelTemplate>
+                                </ComboBox.ItemsPanel>
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Emoji}"
+                                                   Style="{StaticResource EmojiText}"
+                                                   FontSize="19"
+                                                   Width="34"
+                                                   Height="30"
+                                                   LineHeight="28"
+                                                   ToolTip="{Binding Name}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                         </StackPanel>
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="Nome" Margin="0,0,0,6" FontSize="11" FontWeight="SemiBold" />
@@ -1680,7 +1828,7 @@
                                 Height="30"
                                 Margin="2,0,0,0"
                                 CornerRadius="15"
-                                BorderBrush="#29282D"
+                                BorderBrush="{DynamicResource SelectedSwatchBorder}"
                                 BorderThickness="2"
                                 Background="#CFC4F5" />
                     </StackPanel>
@@ -1705,7 +1853,7 @@
                 Grid.RowSpan="2"
                 Margin="0,0,28,26"
                 Padding="15,11"
-                Background="#F329282D"
+                Background="{DynamicResource ToastBackground}"
                 CornerRadius="12"
                 HorizontalAlignment="Right"
                 VerticalAlignment="Bottom"

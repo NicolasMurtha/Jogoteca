@@ -415,7 +415,9 @@ public sealed class GameApiService : IDisposable
             var description = item.TryGetProperty("summary", out var summary)
                 ? summary.GetString() ?? string.Empty
                 : string.Empty;
-            var year = TryReadUnixYear(item, "first_release_date");
+            var releaseDate = TryReadUnixDate(item, "first_release_date");
+            var year = ReleaseYearFromDate(releaseDate) ??
+                       TryReadUnixYear(item, "first_release_date");
             var category = ReadGenres(item);
             var coverUrl = string.Empty;
             if (item.TryGetProperty("cover", out var cover) &&
@@ -433,6 +435,7 @@ public sealed class GameApiService : IDisposable
                 Description = description,
                 Category = category,
                 ReleaseYear = year,
+                ReleaseDate = releaseDate,
                 CoverUrl = coverUrl
             });
         }
@@ -562,7 +565,8 @@ public sealed class GameApiService : IDisposable
 
         foreach (var item in items.EnumerateArray())
         {
-            var releaseYear = TryReadDateYear(item, "released");
+            var releaseDate = TryReadDate(item, "released");
+            var releaseYear = ReleaseYearFromDate(releaseDate);
             results.Add(new GameSearchResult
             {
                 Source = "rawg",
@@ -570,6 +574,7 @@ public sealed class GameApiService : IDisposable
                 Name = item.GetProperty("name").GetString() ?? "Jogo sem nome",
                 Category = ReadGenres(item),
                 ReleaseYear = releaseYear,
+                ReleaseDate = releaseDate,
                 CoverUrl = item.TryGetProperty("background_image", out var cover) &&
                            cover.ValueKind == JsonValueKind.String
                     ? cover.GetString() ?? string.Empty
@@ -619,25 +624,45 @@ public sealed class GameApiService : IDisposable
 
     private static int? TryReadUnixYear(JsonElement item, string propertyName)
     {
+        return ReleaseYearFromDate(TryReadUnixDate(item, propertyName));
+    }
+
+    private static string TryReadUnixDate(JsonElement item, string propertyName)
+    {
         if (!item.TryGetProperty(propertyName, out var value) ||
             value.ValueKind != JsonValueKind.Number)
         {
-            return null;
+            return string.Empty;
         }
 
-        return DateTimeOffset.FromUnixTimeSeconds(value.GetInt64()).Year;
+        return DateTimeOffset
+            .FromUnixTimeSeconds(value.GetInt64())
+            .UtcDateTime
+            .ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     }
 
-    private static int? TryReadDateYear(JsonElement item, string propertyName)
+    private static string TryReadDate(JsonElement item, string propertyName)
     {
         if (!item.TryGetProperty(propertyName, out var value) ||
             value.ValueKind != JsonValueKind.String ||
             !DateTime.TryParse(value.GetString(), CultureInfo.InvariantCulture, out var date))
         {
-            return null;
+            return string.Empty;
         }
 
-        return date.Year;
+        return date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    }
+
+    private static int? ReleaseYearFromDate(string releaseDate)
+    {
+        return DateTime.TryParseExact(
+            releaseDate,
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out var date)
+            ? date.Year
+            : null;
     }
 
     private static string ReadGenres(JsonElement item)
@@ -867,6 +892,7 @@ public sealed class GameApiService : IDisposable
         var results = new List<GameSearchResult>();
         foreach (var item in items.EnumerateArray())
         {
+            var releaseDate = TryReadUnixDate(item, "first_release_date");
             var coverUrl = string.Empty;
             if (item.TryGetProperty("cover", out var cover) &&
                 cover.TryGetProperty("image_id", out var imageId))
@@ -884,7 +910,8 @@ public sealed class GameApiService : IDisposable
                     ? summary.GetString() ?? string.Empty
                     : string.Empty,
                 Category = ReadGenres(item),
-                ReleaseYear = TryReadUnixYear(item, "first_release_date"),
+                ReleaseYear = ReleaseYearFromDate(releaseDate),
+                ReleaseDate = releaseDate,
                 CoverUrl = coverUrl
             });
         }
@@ -902,13 +929,15 @@ public sealed class GameApiService : IDisposable
 
         foreach (var item in items.EnumerateArray())
         {
+            var releaseDate = TryReadDate(item, "released");
             results.Add(new GameSearchResult
             {
                 Source = "rawg",
                 ExternalId = item.GetProperty("id").GetInt64().ToString(CultureInfo.InvariantCulture),
                 Name = item.GetProperty("name").GetString() ?? "Jogo sem nome",
                 Category = ReadGenres(item),
-                ReleaseYear = TryReadDateYear(item, "released"),
+                ReleaseYear = ReleaseYearFromDate(releaseDate),
+                ReleaseDate = releaseDate,
                 CoverUrl = item.TryGetProperty("background_image", out var cover) &&
                            cover.ValueKind == JsonValueKind.String
                     ? cover.GetString() ?? string.Empty

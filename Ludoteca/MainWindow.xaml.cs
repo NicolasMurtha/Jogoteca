@@ -15,6 +15,15 @@ namespace Ludoteca;
 
 public partial class MainWindow : Window, INotifyPropertyChanged
 {
+    private enum LibrarySortMode
+    {
+        Default,
+        NameAscending,
+        NameDescending,
+        ReleaseDateDescending,
+        ReleaseDateAscending
+    }
+
     private static readonly string[] ListColors =
     [
         "#CFC4F5",
@@ -24,6 +33,117 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         "#BFD6ED",
         "#E6C4D8"
     ];
+
+    private const string LightTheme = "light";
+    private const string DarkTheme = "dark";
+
+    private static readonly IReadOnlyDictionary<string, string> LightThemePalette =
+        new Dictionary<string, string>
+        {
+            ["AppBackground"] = "#F4F3F1",
+            ["Surface"] = "#FBFAF8",
+            ["SurfaceMuted"] = "#ECEAE7",
+            ["SidebarBackground"] = "#E8E6E3",
+            ["TitleBarBackground"] = "#F7F6F4",
+            ["TextPrimary"] = "#29282D",
+            ["TextSecondary"] = "#77747D",
+            ["TextInverted"] = "#FFFFFF",
+            ["BorderBrush"] = "#DCD9D5",
+            ["ControlHover"] = "#DEDCD8",
+            ["FocusBorder"] = "#9C8DCE",
+            ["PrimaryButtonBackground"] = "#29282D",
+            ["PrimaryButtonForeground"] = "#FFFFFF",
+            ["DangerBackground"] = "#F3DEDA",
+            ["DangerForeground"] = "#A24949",
+            ["NavSelectedBackground"] = "#D7D2E8",
+            ["NavCounterBackground"] = "#C4B8E9",
+            ["VersionBadgeBackground"] = "#E7E1F7",
+            ["VersionBadgeForeground"] = "#66568E",
+            ["CoverPlaceholderBackground"] = "#DDD9D3",
+            ["CoverPlaceholderIcon"] = "#AAA6A0",
+            ["OverlayScrim"] = "#7629282D",
+            ["LoadingPillBackground"] = "#EEFBFAF8",
+            ["FloatingButtonBackground"] = "#DDFBFAF8",
+            ["WarningBackground"] = "#FFF3D7",
+            ["WarningBorder"] = "#E9D18F",
+            ["AccentForeground"] = "#66568E",
+            ["LinkAccent"] = "#66568E",
+            ["SearchPlaceholderText"] = "#9A969E",
+            ["StatLibraryBackground"] = "#E7E1F7",
+            ["StatLibraryForeground"] = "#746991",
+            ["StatRatingBackground"] = "#DDEEE7",
+            ["StatRatingForeground"] = "#56796D",
+            ["StatReviewBackground"] = "#F6E2DA",
+            ["StatReviewForeground"] = "#956E5E",
+            ["ActionNeutralBackground"] = "#F3EEE6",
+            ["ActionNeutralForeground"] = "#7C6B55",
+            ["ActionDangerBackground"] = "#F3DEDA",
+            ["ActionDangerForeground"] = "#B23A3A",
+            ["RatingOverlayBackground"] = "#EE29282D",
+            ["RatingOverlayForeground"] = "#FFFFFF",
+            ["StarBrush"] = "#F0D791",
+            ["StarMutedBrush"] = "#A78024",
+            ["EmptyIconBackground"] = "#E7E1F7",
+            ["EmptyIconForeground"] = "#8D7CBE",
+            ["EmptyGlyphForeground"] = "#A09BA5",
+            ["RatingValueBackground"] = "#E7E1F7",
+            ["SelectedSwatchBorder"] = "#29282D",
+            ["ToastBackground"] = "#F329282D"
+        };
+
+    private static readonly IReadOnlyDictionary<string, string> DarkThemePalette =
+        new Dictionary<string, string>
+        {
+            ["AppBackground"] = "#121018",
+            ["Surface"] = "#211B2A",
+            ["SurfaceMuted"] = "#2D2538",
+            ["SidebarBackground"] = "#17131F",
+            ["TitleBarBackground"] = "#111018",
+            ["TextPrimary"] = "#F6F1FF",
+            ["TextSecondary"] = "#B7ABC8",
+            ["TextInverted"] = "#121017",
+            ["BorderBrush"] = "#3A3147",
+            ["ControlHover"] = "#352B43",
+            ["FocusBorder"] = "#A996FF",
+            ["PrimaryButtonBackground"] = "#8B75F5",
+            ["PrimaryButtonForeground"] = "#FFFFFF",
+            ["DangerBackground"] = "#4B2630",
+            ["DangerForeground"] = "#FFB1BE",
+            ["NavSelectedBackground"] = "#44346F",
+            ["NavCounterBackground"] = "#7560B8",
+            ["VersionBadgeBackground"] = "#3F3168",
+            ["VersionBadgeForeground"] = "#DED4FF",
+            ["CoverPlaceholderBackground"] = "#2B2435",
+            ["CoverPlaceholderIcon"] = "#70647D",
+            ["OverlayScrim"] = "#C00A0810",
+            ["LoadingPillBackground"] = "#EE2A2336",
+            ["FloatingButtonBackground"] = "#E62A2336",
+            ["WarningBackground"] = "#3B2F1A",
+            ["WarningBorder"] = "#7B6125",
+            ["AccentForeground"] = "#D7CCFF",
+            ["LinkAccent"] = "#D7CCFF",
+            ["SearchPlaceholderText"] = "#8F849C",
+            ["StatLibraryBackground"] = "#332954",
+            ["StatLibraryForeground"] = "#DACFFF",
+            ["StatRatingBackground"] = "#1F3A31",
+            ["StatRatingForeground"] = "#9FE3CA",
+            ["StatReviewBackground"] = "#432A2A",
+            ["StatReviewForeground"] = "#F3B8B2",
+            ["ActionNeutralBackground"] = "#3A3325",
+            ["ActionNeutralForeground"] = "#E5D39D",
+            ["ActionDangerBackground"] = "#4B2630",
+            ["ActionDangerForeground"] = "#FFA4B2",
+            ["RatingOverlayBackground"] = "#F00D0C12",
+            ["RatingOverlayForeground"] = "#FFFFFF",
+            ["StarBrush"] = "#FFD56A",
+            ["StarMutedBrush"] = "#E6B94E",
+            ["EmptyIconBackground"] = "#332954",
+            ["EmptyIconForeground"] = "#DACFFF",
+            ["EmptyGlyphForeground"] = "#8A7D98",
+            ["RatingValueBackground"] = "#332954",
+            ["SelectedSwatchBorder"] = "#F2EEF7",
+            ["ToastBackground"] = "#F00F0D15"
+        };
 
     private readonly DatabaseService _database = new();
     private readonly GameApiService _gameApi;
@@ -41,12 +161,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _isDragging;
     private bool _isInitializingDetail;
     private bool _isCatalogLoading;
+    private LibrarySortMode _librarySortMode = LibrarySortMode.Default;
+    private GameLibraryFilter _activeLibraryFilter = GameLibraryFilter.None;
     private string _selectedListColor = ListColors[0];
+    private string _selectedListEmoji = ListEmojiCatalog.Game;
     private string _selectedListTitle = "Biblioteca";
     private string _selectedListSubtitle = "Todos os jogos que você adicionou";
     private string _totalGameCount = "0";
+    private string _unratedGameCount = "0";
     private string _reviewedGameCount = "0";
+    private string _unorganizedGameCount = "0";
     private string _averageRating = "-";
+    private bool _isDarkTheme;
 
     public MainWindow()
     {
@@ -68,6 +194,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<GameList> Lists { get; } = [];
     public ObservableCollection<GameEntry> Games { get; } = [];
     public ObservableCollection<GameSearchResult> SearchResults { get; } = [];
+    public ObservableCollection<ListEmojiOption> ListEmojiOptions { get; } =
+        new(ListEmojiCatalog.Options);
     public ObservableCollection<CatalogSection> CatalogSections { get; } =
     [
         new CatalogSection
@@ -104,6 +232,28 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<ListMembershipOption> MembershipOptions { get; } = [];
 
     public bool IsViewingList => _selectedListId.HasValue;
+    public bool IsViewingLibrary => !_selectedListId.HasValue;
+    public string ThemeToggleText => IsDarkTheme ? "Usar tema claro" : "Usar tema escuro";
+    public string ThemeToggleIcon => IsDarkTheme ? "\uE706" : "\uE708";
+
+    public string SelectedListEmoji
+    {
+        get => _selectedListEmoji;
+        set => SetField(ref _selectedListEmoji, ListEmojiCatalog.Normalize(value));
+    }
+
+    public bool IsDarkTheme
+    {
+        get => _isDarkTheme;
+        private set
+        {
+            if (SetField(ref _isDarkTheme, value))
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ThemeToggleText)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ThemeToggleIcon)));
+            }
+        }
+    }
 
     public string SelectedListTitle
     {
@@ -123,10 +273,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         private set => SetField(ref _totalGameCount, value);
     }
 
+    public string UnratedGameCount
+    {
+        get => _unratedGameCount;
+        private set => SetField(ref _unratedGameCount, value);
+    }
+
     public string ReviewedGameCount
     {
         get => _reviewedGameCount;
         private set => SetField(ref _reviewedGameCount, value);
+    }
+
+    public string UnorganizedGameCount
+    {
+        get => _unorganizedGameCount;
+        private set => SetField(ref _unorganizedGameCount, value);
     }
 
     public string AverageRating
@@ -141,6 +303,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             await _database.InitializeAsync();
             _settings = await _settingsService.LoadAsync();
+            ApplyTheme(_settings.Theme);
             await RefreshAllAsync();
             ConfigureProviderUi();
             ShowDiscoverView();
@@ -194,6 +357,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Close();
     }
 
+    private async void ToggleTheme_Click(object sender, RoutedEventArgs e)
+    {
+        var nextTheme = IsDarkTheme ? LightTheme : DarkTheme;
+        ApplyTheme(nextTheme);
+        _settings.Theme = nextTheme;
+
+        try
+        {
+            await _settingsService.SaveAsync(_settings);
+            ShowToast(IsDarkTheme ? "Tema escuro ativado." : "Tema claro ativado.");
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Não foi possível salvar o tema: {ex.Message}");
+        }
+    }
+
     private void ToggleMaximize()
     {
         WindowState = WindowState == WindowState.Maximized
@@ -213,6 +393,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async void AllGamesButton_Click(object sender, RoutedEventArgs e)
     {
+        _activeLibraryFilter = GameLibraryFilter.None;
         SetSelectedListId(null);
         SelectedListTitle = "Biblioteca";
         SelectedListSubtitle = "Todos os jogos que você adicionou";
@@ -229,6 +410,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         SetSelectedListId(list.Id);
+        _activeLibraryFilter = GameLibraryFilter.None;
         SelectedListTitle = $"{list.Emoji} {list.Name}".Trim();
         SelectedListSubtitle = ListSubtitle(list.GameCount);
         SetListActionButtonsVisible(true);
@@ -240,7 +422,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         DiscoveryPanel.Visibility = Visibility.Visible;
         LibraryPanel.Visibility = Visibility.Collapsed;
-        DiscoverButton.Background = BrushFromHex("#D7D2E8");
+        DiscoverButton.Background = ResourceBrush("NavSelectedBackground");
         AllGamesButton.Background = Brushes.Transparent;
     }
 
@@ -251,7 +433,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         DiscoverButton.Background = Brushes.Transparent;
         AllGamesButton.Background = _selectedListId.HasValue
             ? Brushes.Transparent
-            : BrushFromHex("#D7D2E8");
+            : ResourceBrush("NavSelectedBackground");
     }
 
     private void ShowLibraryGridView_Click(object sender, RoutedEventArgs e)
@@ -274,6 +456,71 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         LibraryListViewButton.Background = useList
             ? FindResource("Surface") as Brush
             : Brushes.Transparent;
+
+        if (useList)
+        {
+            ApplyLibrarySort();
+        }
+    }
+
+    private void SortByNameHeader_Click(object sender, RoutedEventArgs e)
+    {
+        _librarySortMode = _librarySortMode switch
+        {
+            LibrarySortMode.NameAscending => LibrarySortMode.NameDescending,
+            LibrarySortMode.NameDescending => LibrarySortMode.Default,
+            _ => LibrarySortMode.NameAscending
+        };
+        ApplyLibrarySort();
+    }
+
+    private async void ShowUnratedGames_Click(object sender, RoutedEventArgs e)
+    {
+        await ShowLibraryFilterAsync(
+            GameLibraryFilter.Unrated,
+            "Sem nota",
+            "Jogos que ainda precisam de uma nota.");
+    }
+
+    private async void ShowReviewedGames_Click(object sender, RoutedEventArgs e)
+    {
+        await ShowLibraryFilterAsync(
+            GameLibraryFilter.Reviewed,
+            "Reviews escritas",
+            "Jogos que já têm observação ou review registrada.");
+    }
+
+    private async void ShowUnorganizedGames_Click(object sender, RoutedEventArgs e)
+    {
+        await ShowLibraryFilterAsync(
+            GameLibraryFilter.Unorganized,
+            "Não organizados",
+            "Jogos que ainda não estão em nenhuma lista.");
+    }
+
+    private void SortByReleaseHeader_Click(object sender, RoutedEventArgs e)
+    {
+        _librarySortMode = _librarySortMode switch
+        {
+            LibrarySortMode.ReleaseDateDescending => LibrarySortMode.ReleaseDateAscending,
+            LibrarySortMode.ReleaseDateAscending => LibrarySortMode.Default,
+            _ => LibrarySortMode.ReleaseDateDescending
+        };
+        ApplyLibrarySort();
+    }
+
+    private async Task ShowLibraryFilterAsync(
+        GameLibraryFilter filter,
+        string title,
+        string subtitle)
+    {
+        _activeLibraryFilter = filter;
+        SetSelectedListId(null);
+        SelectedListTitle = title;
+        SelectedListSubtitle = subtitle;
+        SetListActionButtonsVisible(false);
+        ShowLibraryView();
+        await RefreshLibraryAsync();
     }
 
     private void SetListActionButtonsVisible(bool visible)
@@ -287,11 +534,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         _editingListId = null;
         _selectedListColor = ListColors[Lists.Count % ListColors.Length];
+        SelectedListEmoji = ListEmojiCatalog.Game;
         ListEditorTitle.Text = "Criar uma lista";
         ListEditorSubtitle.Text = "Personalize o nome, o emoji e a cor da lista.";
         SaveListButton.Content = "Criar lista";
         NewListNameBox.Clear();
-        ListEmojiBox.Text = "🎮";
         UpdateSelectedColorPreview();
         ListEditorOverlay.Visibility = Visibility.Visible;
         Dispatcher.BeginInvoke(() => NewListNameBox.Focus());
@@ -312,11 +559,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         _editingListId = list.Id;
         _selectedListColor = list.Color;
+        SelectedListEmoji = list.Emoji;
         ListEditorTitle.Text = "Editar lista";
         ListEditorSubtitle.Text = "Altere o nome, o emoji ou a cor desta lista.";
         SaveListButton.Content = "Salvar alterações";
         NewListNameBox.Text = list.Name;
-        ListEmojiBox.Text = list.Emoji;
         UpdateSelectedColorPreview();
         ListEditorOverlay.Visibility = Visibility.Visible;
         Dispatcher.BeginInvoke(() =>
@@ -358,9 +605,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private async void SaveList_Click(object sender, RoutedEventArgs e)
     {
         var name = NewListNameBox.Text.Trim();
-        var emoji = string.IsNullOrWhiteSpace(ListEmojiBox.Text)
-            ? "🎮"
-            : ListEmojiBox.Text.Trim();
+        var emoji = SelectedListEmoji;
         if (string.IsNullOrWhiteSpace(name))
         {
             ShowToast("Digite um nome para a lista.");
@@ -493,7 +738,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             : DragDropEffects.Copy;
         if (sender is Button button)
         {
-            button.Background = BrushFromHex("#CFC4F5");
+            button.Background = ResourceBrush("NavSelectedBackground");
         }
         e.Handled = true;
     }
@@ -535,12 +780,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     game.Id,
                     dragData.SourceListId.Value,
                     list.Id);
-                ShowToast($"\"{game.Name}\" foi movido para {list.Emoji} {list.Name}.");
+                ShowToast($"\"{game.Name}\" foi movido para {list.Name}.");
             }
             else
             {
                 await _database.AddGameToListAsync(game.Id, list.Id);
-                ShowToast($"\"{game.Name}\" foi adicionado a {list.Emoji} {list.Name}.");
+                ShowToast($"\"{game.Name}\" foi adicionado a {list.Name}.");
             }
 
             await RefreshAllAsync();
@@ -718,6 +963,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         var cancellationToken = _catalogCancellation?.Token ?? CancellationToken.None;
         await LoadNextCatalogPageAsync(section, cancellationToken);
+    }
+
+    private void CatalogSectionScrollViewer_PreviewMouseWheel(
+        object sender,
+        MouseWheelEventArgs e)
+    {
+        if (DiscoveryScrollViewer is null)
+        {
+            return;
+        }
+
+        DiscoveryScrollViewer.ScrollToVerticalOffset(
+            Math.Max(0, DiscoveryScrollViewer.VerticalOffset - e.Delta));
+        e.Handled = true;
     }
 
     private void ScrollCatalogSectionLeft_Click(object sender, RoutedEventArgs e)
@@ -1258,7 +1517,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             IgdbClientId = IgdbClientIdBox.Password.Trim(),
             IgdbClientSecret = IgdbClientSecretBox.Password.Trim(),
-            RawgApiKey = RawgApiKeyBox.Password.Trim()
+            RawgApiKey = RawgApiKeyBox.Password.Trim(),
+            Theme = _settings.Theme
         };
 
         try
@@ -1378,16 +1638,28 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async Task RefreshLibraryAsync()
     {
-        var games = await _database.GetGamesAsync(_selectedListId);
+        var libraryFilter = _selectedListId.HasValue
+            ? GameLibraryFilter.None
+            : _activeLibraryFilter;
+        var games = await _database.GetGamesAsync(
+            _selectedListId,
+            libraryFilter: libraryFilter);
         Games.Clear();
         foreach (var game in games)
         {
             Games.Add(game);
         }
 
+        if (LibraryListView?.Visibility == Visibility.Visible)
+        {
+            ApplyLibrarySort();
+        }
+
         var stats = await _database.GetStatsAsync();
         TotalGameCount = stats.TotalGames.ToString();
+        UnratedGameCount = stats.UnratedGames.ToString();
         ReviewedGameCount = stats.ReviewedGames.ToString();
+        UnorganizedGameCount = stats.UnorganizedGames.ToString();
         AverageRating = stats.AverageRatingDisplay;
 
         if (_selectedListId.HasValue)
@@ -1404,12 +1676,74 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             : Visibility.Collapsed;
         if (Games.Count == 0)
         {
-            EmptyLibraryTitle.Text = _selectedListId.HasValue
-                ? "Esta lista está vazia"
-                : "Sua biblioteca ainda está vazia";
-            EmptyLibraryMessage.Text = _selectedListId.HasValue
-                ? "Arraste um jogo da Biblioteca ou de outra lista para começar a organizar."
-                : "Adicione jogos à biblioteca. Depois, arraste os cards entre as listas como em um kanban.";
+            SetEmptyLibraryMessage();
+        }
+    }
+
+    private void SetEmptyLibraryMessage()
+    {
+        if (_selectedListId.HasValue)
+        {
+            EmptyLibraryTitle.Text = "Esta lista está vazia";
+            EmptyLibraryMessage.Text =
+                "Arraste um jogo da Biblioteca ou de outra lista para começar a organizar.";
+            return;
+        }
+
+        (EmptyLibraryTitle.Text, EmptyLibraryMessage.Text) = _activeLibraryFilter switch
+        {
+            GameLibraryFilter.Unrated => (
+                "Nenhum jogo sem nota",
+                "Todos os jogos da biblioteca já têm uma nota registrada."),
+            GameLibraryFilter.Reviewed => (
+                "Nenhuma review escrita",
+                "Quando você escrever observações ou reviews, elas aparecem aqui."),
+            GameLibraryFilter.Unorganized => (
+                "Tudo organizado",
+                "Todos os jogos da biblioteca já estão em pelo menos uma lista."),
+            _ => (
+                "Sua biblioteca ainda está vazia",
+                "Adicione jogos à biblioteca. Depois, arraste os cards entre as listas como em um kanban.")
+        };
+    }
+
+    private void ApplyLibrarySort()
+    {
+        if (Games.Count <= 1)
+        {
+            return;
+        }
+
+        var sortedGames = _librarySortMode switch
+        {
+            LibrarySortMode.NameDescending => Games
+                .OrderByDescending(game => game.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ThenByDescending(game => game.ReleaseSortDate ?? DateTime.MinValue)
+                .ToList(),
+            LibrarySortMode.ReleaseDateDescending => Games
+                .OrderByDescending(game => game.ReleaseSortDate ?? DateTime.MinValue)
+                .ThenBy(game => game.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToList(),
+            LibrarySortMode.ReleaseDateAscending => Games
+                .OrderBy(game => game.ReleaseSortDate ?? DateTime.MaxValue)
+                .ThenBy(game => game.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToList(),
+            LibrarySortMode.NameAscending => Games
+                .OrderBy(game => game.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ThenByDescending(game => game.ReleaseSortDate ?? DateTime.MinValue)
+                .ToList(),
+            _ => Games
+                .OrderByDescending(game => DateTime.TryParse(game.AddedAt, out var addedAt)
+                    ? addedAt
+                    : DateTime.MinValue)
+                .ThenBy(game => game.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToList()
+        };
+
+        Games.Clear();
+        foreach (var game in sortedGames)
+        {
+            Games.Add(game);
         }
     }
 
@@ -1427,6 +1761,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         _selectedListId = listId;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsViewingList)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsViewingLibrary)));
     }
 
     private void ShowSearchEmpty(string title, string message)
@@ -1437,12 +1772,72 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SearchEmptyState.Visibility = Visibility.Visible;
     }
 
+    private void ApplyTheme(string theme)
+    {
+        var normalizedTheme = NormalizeTheme(theme);
+        var palette = normalizedTheme == DarkTheme
+            ? DarkThemePalette
+            : LightThemePalette;
+
+        foreach (var (resourceKey, color) in palette)
+        {
+            Application.Current.Resources[resourceKey] =
+                new SolidColorBrush((Color)ColorConverter.ConvertFromString(color)!);
+        }
+
+        IsDarkTheme = normalizedTheme == DarkTheme;
+        _settings.Theme = normalizedTheme;
+        Background = ResourceBrush("AppBackground");
+        Foreground = ResourceBrush("TextPrimary");
+        RefreshThemeAwareBrushes();
+    }
+
+    private static string NormalizeTheme(string theme)
+    {
+        return string.Equals(theme, DarkTheme, StringComparison.OrdinalIgnoreCase)
+            ? DarkTheme
+            : LightTheme;
+    }
+
     private void ShowToast(string message)
     {
         ToastText.Text = message;
         Toast.Visibility = Visibility.Visible;
         _toastTimer.Stop();
         _toastTimer.Start();
+    }
+
+    private Brush ResourceBrush(string key)
+    {
+        return (Brush)FindResource(key);
+    }
+
+    private void RefreshThemeAwareBrushes()
+    {
+        if (DiscoveryPanel is null ||
+            LibraryPanel is null ||
+            LibraryGridViewButton is null ||
+            LibraryListViewButton is null)
+        {
+            return;
+        }
+
+        if (DiscoveryPanel.Visibility == Visibility.Visible)
+        {
+            ShowDiscoverView();
+        }
+        else if (LibraryPanel.Visibility == Visibility.Visible)
+        {
+            ShowLibraryView();
+        }
+
+        var useList = LibraryListView?.Visibility == Visibility.Visible;
+        LibraryGridViewButton.Background = useList
+            ? Brushes.Transparent
+            : ResourceBrush("Surface");
+        LibraryListViewButton.Background = useList
+            ? ResourceBrush("Surface")
+            : Brushes.Transparent;
     }
 
     private static Brush BrushFromHex(string color)

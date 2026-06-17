@@ -15,7 +15,8 @@ public sealed class SettingsService(DatabaseService database)
         {
             IgdbClientId = Unprotect(GetValue(stored, "igdb_client_id")),
             IgdbClientSecret = Unprotect(GetValue(stored, "igdb_client_secret")),
-            RawgApiKey = Unprotect(GetValue(stored, "rawg_api_key"))
+            RawgApiKey = Unprotect(GetValue(stored, "rawg_api_key")),
+            Theme = NormalizeTheme(GetValue(stored, "app_theme"))
         };
     }
 
@@ -25,7 +26,8 @@ public sealed class SettingsService(DatabaseService database)
         {
             ["igdb_client_id"] = Protect(settings.IgdbClientId),
             ["igdb_client_secret"] = Protect(settings.IgdbClientSecret),
-            ["rawg_api_key"] = Protect(settings.RawgApiKey)
+            ["rawg_api_key"] = Protect(settings.RawgApiKey),
+            ["app_theme"] = NormalizeTheme(settings.Theme)
         };
 
         return database.SaveSettingsAsync(values);
@@ -34,6 +36,13 @@ public sealed class SettingsService(DatabaseService database)
     private static string GetValue(IReadOnlyDictionary<string, string> values, string key)
     {
         return values.TryGetValue(key, out var value) ? value : string.Empty;
+    }
+
+    private static string NormalizeTheme(string value)
+    {
+        return string.Equals(value, "dark", StringComparison.OrdinalIgnoreCase)
+            ? "dark"
+            : "light";
     }
 
     private static string Protect(string value)

@@ -95,6 +95,8 @@ public sealed class GameApiServiceTests
         var result = Assert.Single(response.Results);
         Assert.Equal("igdb", result.Source);
         Assert.Equal("Primary Game", result.Name);
+        Assert.Equal(2024, result.ReleaseYear);
+        Assert.Equal("2024-01-01", result.ReleaseDate);
         Assert.Equal(0, handler.RawgCalls);
     }
 
@@ -131,6 +133,7 @@ public sealed class GameApiServiceTests
             CancellationToken.None);
 
         Assert.Equal("rawg", Assert.Single(response.Results).Source);
+        Assert.Equal("2025-01-15", Assert.Single(response.Results).ReleaseDate);
         Assert.Equal(1, handler.RawgCalls);
         Assert.Equal(0, handler.IgdbCalls);
         Assert.Equal(0, handler.TwitchCalls);
@@ -371,6 +374,7 @@ public sealed class GameApiServiceTests
             CancellationToken.None);
 
         Assert.Equal("Batch Game", Assert.Single(pages[CatalogFeed.Recommended].Results).Name);
+        Assert.Equal("2024-01-01", Assert.Single(pages[CatalogFeed.Recommended].Results).ReleaseDate);
         Assert.Empty(pages[CatalogFeed.Trending].Results);
         Assert.Equal(1, handler.IgdbCalls);
         Assert.Contains("query games \"Recommended\"", handler.LastIgdbBody);

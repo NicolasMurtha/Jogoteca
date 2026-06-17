@@ -9,18 +9,60 @@
         <SolidColorBrush x:Key="Surface" Color="#FBFAF8" />
         <SolidColorBrush x:Key="SurfaceMuted" Color="#ECEAE7" />
         <SolidColorBrush x:Key="SidebarBackground" Color="#E8E6E3" />
+        <SolidColorBrush x:Key="TitleBarBackground" Color="#F7F6F4" />
         <SolidColorBrush x:Key="TextPrimary" Color="#29282D" />
         <SolidColorBrush x:Key="TextSecondary" Color="#77747D" />
+        <SolidColorBrush x:Key="TextInverted" Color="#FFFFFF" />
         <SolidColorBrush x:Key="Lavender" Color="#CFC4F5" />
         <SolidColorBrush x:Key="Mint" Color="#B9DDCF" />
         <SolidColorBrush x:Key="Peach" Color="#F5C6B5" />
         <SolidColorBrush x:Key="Yellow" Color="#EEDDA8" />
         <SolidColorBrush x:Key="BorderBrush" Color="#DCD9D5" />
+        <SolidColorBrush x:Key="ControlHover" Color="#DEDCD8" />
+        <SolidColorBrush x:Key="FocusBorder" Color="#9C8DCE" />
+        <SolidColorBrush x:Key="PrimaryButtonBackground" Color="#29282D" />
+        <SolidColorBrush x:Key="PrimaryButtonForeground" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="DangerBackground" Color="#F3DEDA" />
+        <SolidColorBrush x:Key="DangerForeground" Color="#A24949" />
+        <SolidColorBrush x:Key="NavSelectedBackground" Color="#D7D2E8" />
+        <SolidColorBrush x:Key="NavCounterBackground" Color="#C4B8E9" />
+        <SolidColorBrush x:Key="VersionBadgeBackground" Color="#E7E1F7" />
+        <SolidColorBrush x:Key="VersionBadgeForeground" Color="#66568E" />
+        <SolidColorBrush x:Key="CoverPlaceholderBackground" Color="#DDD9D3" />
+        <SolidColorBrush x:Key="CoverPlaceholderIcon" Color="#AAA6A0" />
+        <SolidColorBrush x:Key="OverlayScrim" Color="#7629282D" />
+        <SolidColorBrush x:Key="LoadingPillBackground" Color="#EEFBFAF8" />
+        <SolidColorBrush x:Key="FloatingButtonBackground" Color="#DDFBFAF8" />
+        <SolidColorBrush x:Key="WarningBackground" Color="#FFF3D7" />
+        <SolidColorBrush x:Key="WarningBorder" Color="#E9D18F" />
+        <SolidColorBrush x:Key="AccentForeground" Color="#66568E" />
+        <SolidColorBrush x:Key="LinkAccent" Color="#66568E" />
+        <SolidColorBrush x:Key="SearchPlaceholderText" Color="#9A969E" />
+        <SolidColorBrush x:Key="StatLibraryBackground" Color="#E7E1F7" />
+        <SolidColorBrush x:Key="StatLibraryForeground" Color="#746991" />
+        <SolidColorBrush x:Key="StatRatingBackground" Color="#DDEEE7" />
+        <SolidColorBrush x:Key="StatRatingForeground" Color="#56796D" />
+        <SolidColorBrush x:Key="StatReviewBackground" Color="#F6E2DA" />
+        <SolidColorBrush x:Key="StatReviewForeground" Color="#956E5E" />
+        <SolidColorBrush x:Key="ActionNeutralBackground" Color="#F3EEE6" />
+        <SolidColorBrush x:Key="ActionNeutralForeground" Color="#7C6B55" />
+        <SolidColorBrush x:Key="ActionDangerBackground" Color="#F3DEDA" />
+        <SolidColorBrush x:Key="ActionDangerForeground" Color="#B23A3A" />
+        <SolidColorBrush x:Key="RatingOverlayBackground" Color="#EE29282D" />
+        <SolidColorBrush x:Key="RatingOverlayForeground" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="StarBrush" Color="#F0D791" />
+        <SolidColorBrush x:Key="StarMutedBrush" Color="#A78024" />
+        <SolidColorBrush x:Key="EmptyIconBackground" Color="#E7E1F7" />
+        <SolidColorBrush x:Key="EmptyIconForeground" Color="#8D7CBE" />
+        <SolidColorBrush x:Key="EmptyGlyphForeground" Color="#A09BA5" />
+        <SolidColorBrush x:Key="RatingValueBackground" Color="#E7E1F7" />
+        <SolidColorBrush x:Key="SelectedSwatchBorder" Color="#29282D" />
+        <SolidColorBrush x:Key="ToastBackground" Color="#F329282D" />
 
         <Style TargetType="Window">
             <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI" />
-            <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
-            <Setter Property="Background" Value="{StaticResource AppBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="Background" Value="{DynamicResource AppBackground}" />
         </Style>
 
         <Style x:Key="IconButton" TargetType="Button">
@@ -29,7 +71,7 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -43,7 +85,7 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Border"
                                         Property="Background"
-                                        Value="#DEDCD8" />
+                                        Value="{DynamicResource ControlHover}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Border"
@@ -58,8 +100,8 @@
 
         <Style x:Key="PrimaryButton" TargetType="Button">
             <Setter Property="Padding" Value="18,11" />
-            <Setter Property="Background" Value="{StaticResource TextPrimary}" />
-            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="{DynamicResource PrimaryButtonBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
@@ -87,22 +129,23 @@
         </Style>
 
         <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
-            <Setter Property="Background" Value="{StaticResource SurfaceMuted}" />
-            <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceMuted}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
         </Style>
 
         <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
-            <Setter Property="Foreground" Value="#A24949" />
-            <Setter Property="Background" Value="#F3DEDA" />
+            <Setter Property="Foreground" Value="{DynamicResource DangerForeground}" />
+            <Setter Property="Background" Value="{DynamicResource DangerBackground}" />
         </Style>
 
         <Style x:Key="TextInput" TargetType="TextBox">
-            <Setter Property="Background" Value="{StaticResource Surface}" />
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource Surface}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="13,10" />
             <Setter Property="FontSize" Value="14" />
-            <Setter Property="CaretBrush" Value="{StaticResource TextPrimary}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
@@ -118,7 +161,7 @@
                             <Trigger Property="IsKeyboardFocused" Value="True">
                                 <Setter TargetName="Border"
                                         Property="BorderBrush"
-                                        Value="#9C8DCE" />
+                                        Value="{DynamicResource FocusBorder}" />
                                 <Setter TargetName="Border"
                                         Property="BorderThickness"
                                         Value="2" />
@@ -130,16 +173,23 @@
         </Style>
 
         <Style x:Key="PasswordInput" TargetType="PasswordBox">
-            <Setter Property="Background" Value="{StaticResource Surface}" />
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource Surface}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="13,10" />
             <Setter Property="FontSize" Value="14" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}" />
+        </Style>
+
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
         </Style>
 
         <Style x:Key="NavButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="Padding" Value="12,10" />
             <Setter Property="Cursor" Value="Hand" />
@@ -155,7 +205,7 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Border"
                                         Property="Background"
-                                        Value="#DCD9D5" />
+                                        Value="{DynamicResource ControlHover}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Ludoteca.Models;
 using Ludoteca.Services;
+using Microsoft.Win32;
 
 namespace Ludoteca;
 
@@ -36,6 +37,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private const string LightTheme = "light";
     private const string DarkTheme = "dark";
+    private const double NoRatingSliderValue = -1;
 
     private static readonly IReadOnlyDictionary<string, string> LightThemePalette =
         new Dictionary<string, string>
@@ -55,6 +57,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             ["PrimaryButtonForeground"] = "#FFFFFF",
             ["DangerBackground"] = "#F3DEDA",
             ["DangerForeground"] = "#A24949",
+            ["ConfirmButtonBackground"] = "#BFE8C8",
+            ["ConfirmButtonForeground"] = "#28543A",
+            ["CancelButtonBackground"] = "#F2C0BC",
+            ["CancelButtonForeground"] = "#7B2E2E",
             ["NavSelectedBackground"] = "#D7D2E8",
             ["NavCounterBackground"] = "#C4B8E9",
             ["VersionBadgeBackground"] = "#E7E1F7",
@@ -109,6 +115,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             ["PrimaryButtonForeground"] = "#FFFFFF",
             ["DangerBackground"] = "#4B2630",
             ["DangerForeground"] = "#FFB1BE",
+            ["ConfirmButtonBackground"] = "#72C58C",
+            ["ConfirmButtonForeground"] = "#102418",
+            ["CancelButtonBackground"] = "#E88983",
+            ["CancelButtonForeground"] = "#2F1212",
             ["NavSelectedBackground"] = "#44346F",
             ["NavCounterBackground"] = "#7560B8",
             ["VersionBadgeBackground"] = "#3F3168",
@@ -147,18 +157,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private readonly DatabaseService _database = new();
     private readonly GameApiService _gameApi;
+    private readonly DataExportService _dataExportService;
     private readonly DispatcherTimer _toastTimer;
     private readonly SettingsService _settingsService;
 
     private CancellationTokenSource? _searchCancellation;
     private CancellationTokenSource? _catalogCancellation;
+    private TaskCompletionSource<bool>? _confirmationCompletion;
     private AppSettings _settings = new();
     private int? _selectedListId;
     private int? _editingListId;
     private GameEntry? _selectedGame;
     private GameSearchResult? _selectedCatalogGame;
     private Point _dragStartPoint;
+    private Point _listDragStartPoint;
     private bool _isDragging;
+    private bool _isListDragging;
     private bool _isInitializingDetail;
     private bool _isCatalogLoading;
     private LibrarySortMode _librarySortMode = LibrarySortMode.Default;
@@ -167,6 +181,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string _selectedListEmoji = ListEmojiCatalog.Game;
     private string _selectedListTitle = "Biblioteca";
     private string _selectedListSubtitle = "Todos os jogos que você adicionou";
+    private string _libraryNameFilter = string.Empty;
     private string _totalGameCount = "0";
     private string _unratedGameCount = "0";
     private string _reviewedGameCount = "0";
@@ -179,6 +194,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         InitializeComponent();
         _gameApi = new GameApiService(
             catalogCacheDirectory: Path.Combine(_database.AppDataDirectory, "catalog-cache"));
+        _dataExportService = new DataExportService(_database);
         _settingsService = new SettingsService(_database);
         _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.2) };
         _toastTimer.Tick += (_, _) =>
@@ -235,6 +251,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public bool IsViewingLibrary => !_selectedListId.HasValue;
     public string ThemeToggleText => IsDarkTheme ? "Usar tema claro" : "Usar tema escuro";
     public string ThemeToggleIcon => IsDarkTheme ? "\uE706" : "\uE708";
+    public string NameSortHeaderText => _librarySortMode switch
+    {
+        LibrarySortMode.NameAscending => "Nome A-Z",
+        LibrarySortMode.NameDescending => "Nome Z-A",
+        _ => "Nome"
+    };
+    public string ReleaseSortHeaderText => _librarySortMode switch
+    {
+        LibrarySortMode.ReleaseDateDescending => "Lançamento ↓",
+        LibrarySortMode.ReleaseDateAscending => "Lançamento ↑",
+        _ => "Lançamento"
+    };
 
     public string SelectedListEmoji
     {
@@ -404,6 +432,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async void ListButton_Click(object sender, RoutedEventArgs e)
     {
+        if (_isListDragging)
+        {
+            _isListDragging = false;
+            return;
+        }
+
         if ((sender as FrameworkElement)?.DataContext is not GameList list)
         {
             return;
@@ -471,6 +505,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             LibrarySortMode.NameDescending => LibrarySortMode.Default,
             _ => LibrarySortMode.NameAscending
         };
+        NotifySortHeaderChanges();
         ApplyLibrarySort();
     }
 
@@ -506,7 +541,40 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             LibrarySortMode.ReleaseDateAscending => LibrarySortMode.Default,
             _ => LibrarySortMode.ReleaseDateDescending
         };
+        NotifySortHeaderChanges();
         ApplyLibrarySort();
+    }
+
+    private async void ApplyLibraryNameFilter_Click(object sender, RoutedEventArgs e)
+    {
+        _libraryNameFilter = LibraryNameFilterBox.Text.Trim();
+        await RefreshLibraryAsync();
+    }
+
+    private async void LibraryNameFilterBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            _libraryNameFilter = LibraryNameFilterBox.Text.Trim();
+            await RefreshLibraryAsync();
+        }
+    }
+
+    private void LibraryNameFilterBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (LibraryNameFilterPlaceholder is not null)
+        {
+            LibraryNameFilterPlaceholder.Visibility =
+                string.IsNullOrWhiteSpace(LibraryNameFilterBox.Text)
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+        }
+    }
+
+    private void NotifySortHeaderChanges()
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NameSortHeaderText)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ReleaseSortHeaderText)));
     }
 
     private async Task ShowLibraryFilterAsync(
@@ -599,7 +667,30 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void UpdateSelectedColorPreview()
     {
-        SelectedListColorPreview.Background = BrushFromHex(_selectedListColor);
+        var buttons = new[]
+        {
+            ListColorLavenderButton,
+            ListColorMintButton,
+            ListColorPeachButton,
+            ListColorYellowButton,
+            ListColorBlueButton,
+            ListColorPinkButton
+        };
+
+        foreach (var button in buttons)
+        {
+            if (button.Tag is string color &&
+                color.Equals(_selectedListColor, StringComparison.OrdinalIgnoreCase))
+            {
+                button.BorderBrush = BrushFromHex("#E85D5D");
+                button.BorderThickness = new Thickness(3);
+            }
+            else
+            {
+                button.BorderBrush = Brushes.Transparent;
+                button.BorderThickness = new Thickness(2);
+            }
+        }
     }
 
     private async void SaveList_Click(object sender, RoutedEventArgs e)
@@ -671,12 +762,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        var result = MessageBox.Show(
-            $"Excluir a lista \"{selected.Name}\"?\n\nOs jogos continuarão na biblioteca.",
+        var confirmed = await ShowConfirmationAsync(
             "Excluir lista",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
-        if (result != MessageBoxResult.Yes)
+            $"Excluir a lista \"{selected.Name}\"?\n\nOs jogos continuarão na biblioteca.",
+            "Confirmar");
+        if (!confirmed)
         {
             return;
         }
@@ -695,6 +785,37 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         _dragStartPoint = e.GetPosition(null);
         _isDragging = false;
+    }
+
+    private void ListButton_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _listDragStartPoint = e.GetPosition(null);
+        _isListDragging = false;
+    }
+
+    private void ListButton_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed ||
+            (sender as FrameworkElement)?.DataContext is not GameList list)
+        {
+            return;
+        }
+
+        var currentPosition = e.GetPosition(null);
+        if (Math.Abs(currentPosition.X - _listDragStartPoint.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(currentPosition.Y - _listDragStartPoint.Y) < SystemParameters.MinimumVerticalDragDistance)
+        {
+            return;
+        }
+
+        _isListDragging = true;
+        DragDrop.DoDragDrop(
+            (DependencyObject)sender,
+            new DataObject(typeof(ListDragData), new ListDragData(list.Id)),
+            DragDropEffects.Move);
+        _ = Dispatcher.BeginInvoke(
+            DispatcherPriority.Background,
+            () => _isListDragging = false);
     }
 
     private void GameCard_PreviewMouseMove(object sender, MouseEventArgs e)
@@ -727,6 +848,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void ListButton_DragEnter(object sender, DragEventArgs e)
     {
+        if (e.Data.GetData(typeof(ListDragData)) is ListDragData)
+        {
+            e.Effects = DragDropEffects.Move;
+            if (sender is Button listButton)
+            {
+                listButton.Background = ResourceBrush("NavSelectedBackground");
+            }
+
+            e.Handled = true;
+            return;
+        }
+
         if (e.Data.GetData(typeof(GameDragData)) is not GameDragData dragData)
         {
             e.Effects = DragDropEffects.None;
@@ -757,6 +890,28 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (sender is Button button)
         {
             button.Background = Brushes.Transparent;
+        }
+
+        if (e.Data.GetData(typeof(ListDragData)) is ListDragData listDragData &&
+            (sender as FrameworkElement)?.DataContext is GameList targetList)
+        {
+            if (listDragData.ListId == targetList.Id)
+            {
+                return;
+            }
+
+            try
+            {
+                await _database.MoveListAsync(listDragData.ListId, targetList.Id);
+                await RefreshListsAsync();
+                ShowToast("Ordem das listas atualizada.");
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"Não foi possível reordenar a lista: {ex.Message}");
+            }
+
+            return;
         }
 
         if (e.Data.GetData(typeof(GameDragData)) is not GameDragData dragData ||
@@ -1069,7 +1224,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private async void SearchOnline_Click(object sender, RoutedEventArgs e)
     {
         SearchOverlay.Visibility = Visibility.Visible;
-        OverlaySearchBox.Text = OnlineSearchBox.Text.Trim();
+        OverlaySearchBox.Clear();
         ConfigureProviderUi();
 
         if (_settings.HasAnyProvider && !string.IsNullOrWhiteSpace(OverlaySearchBox.Text))
@@ -1089,24 +1244,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 "Busque pelo nome de um jogo",
                 "Os resultados da fonte configurada aparecerão aqui.");
             _ = Dispatcher.BeginInvoke(() => OverlaySearchBox.Focus());
-        }
-    }
-
-    private void OnlineSearchBox_KeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Enter)
-        {
-            SearchOnline_Click(sender, e);
-        }
-    }
-
-    private void OnlineSearchBox_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        if (OnlineSearchPlaceholder is not null)
-        {
-            OnlineSearchPlaceholder.Visibility = string.IsNullOrWhiteSpace(OnlineSearchBox.Text)
-                ? Visibility.Visible
-                : Visibility.Collapsed;
         }
     }
 
@@ -1262,9 +1399,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 // The remote URL remains available when local cover caching fails.
             }
 
-            await _database.UpsertGameAsync(game, coverPath);
+            var gameId = await _database.UpsertGameAsync(game, coverPath);
+            var addedToCurrentList = false;
+            if (_selectedListId.HasValue)
+            {
+                await _database.AddGameToListAsync(gameId, _selectedListId.Value);
+                addedToCurrentList = true;
+            }
+
             await RefreshAllAsync();
-            ShowToast($"\"{game.Name}\" foi adicionado à biblioteca.");
+            ShowToast(addedToCurrentList
+                ? $"\"{game.Name}\" foi adicionado à biblioteca e à lista atual."
+                : $"\"{game.Name}\" foi adicionado à biblioteca.");
             return true;
         }
         catch (Exception ex)
@@ -1276,9 +1422,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void OpenManualGame_Click(object sender, RoutedEventArgs e)
     {
-        ManualNameBox.Text = string.IsNullOrWhiteSpace(OverlaySearchBox.Text)
-            ? OnlineSearchBox.Text.Trim()
-            : OverlaySearchBox.Text.Trim();
+        ManualNameBox.Text = OverlaySearchBox.Text.Trim();
         ManualCategoryBox.Clear();
         ManualYearBox.Clear();
         ManualDescriptionBox.Clear();
@@ -1358,12 +1502,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         try
         {
-            await _database.UpsertGameAsync(game, coverPath);
+            var gameId = await _database.UpsertGameAsync(game, coverPath);
+            var addedToCurrentList = false;
+            if (_selectedListId.HasValue)
+            {
+                await _database.AddGameToListAsync(gameId, _selectedListId.Value);
+                addedToCurrentList = true;
+            }
+
             ManualGameOverlay.Visibility = Visibility.Collapsed;
             SearchOverlay.Visibility = Visibility.Collapsed;
-            OnlineSearchBox.Clear();
             await RefreshAllAsync();
-            ShowToast($"\"{name}\" foi adicionado à biblioteca.");
+            ShowToast(addedToCurrentList
+                ? $"\"{name}\" foi adicionado à biblioteca e à lista atual."
+                : $"\"{name}\" foi adicionado à biblioteca.");
         }
         catch (Exception ex)
         {
@@ -1389,14 +1541,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         MembershipOptions.Clear();
         foreach (var membership in await _database.GetMembershipsAsync(game.Id))
         {
-            MembershipOptions.Add(membership);
+            if (membership.IsSelected)
+            {
+                MembershipOptions.Add(membership);
+            }
         }
 
         _isInitializingDetail = true;
-        RatingSlider.Value = game.UserRating ?? 0;
-        NoRatingCheckBox.IsChecked = !game.UserRating.HasValue;
-        RatingSlider.IsEnabled = game.UserRating.HasValue;
-        RatingValueText.Text = game.UserRating?.ToString("0.0") ?? "-";
+        RatingSlider.Value = game.UserRating.HasValue
+            ? Math.Round(game.UserRating.Value)
+            : NoRatingSliderValue;
+        UpdateRatingValueText();
         ReviewTextBox.Text = game.Review;
         _isInitializingDetail = false;
         DetailOverlay.Visibility = Visibility.Visible;
@@ -1415,23 +1570,24 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        RatingValueText.Text = RatingSlider.Value.ToString("0.0");
-        if (NoRatingCheckBox.IsChecked == true)
-        {
-            NoRatingCheckBox.IsChecked = false;
-        }
+        UpdateRatingValueText();
     }
 
-    private void NoRatingCheckBox_Changed(object sender, RoutedEventArgs e)
+    private void UpdateRatingValueText()
     {
-        if (RatingSlider is null || RatingValueText is null || _isInitializingDetail)
+        if (RatingValueText is null || RatingSlider is null)
         {
             return;
         }
 
-        var noRating = NoRatingCheckBox.IsChecked == true;
-        RatingSlider.IsEnabled = !noRating;
-        RatingValueText.Text = noRating ? "-" : RatingSlider.Value.ToString("0.0");
+        RatingValueText.Text = IsNoRatingValue(RatingSlider.Value)
+            ? "Sem nota"
+            : RatingSlider.Value.ToString("0");
+    }
+
+    private static bool IsNoRatingValue(double value)
+    {
+        return value <= NoRatingSliderValue + 0.01;
     }
 
     private async void SaveGameDetails_Click(object sender, RoutedEventArgs e)
@@ -1441,7 +1597,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        double? rating = NoRatingCheckBox.IsChecked == true ? null : RatingSlider.Value;
+        double? rating = IsNoRatingValue(RatingSlider.Value)
+            ? null
+            : RatingSlider.Value;
         var selectedListIds = MembershipOptions
             .Where(option => option.IsSelected)
             .Select(option => option.ListId);
@@ -1456,7 +1614,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             DetailOverlay.Visibility = Visibility.Collapsed;
             _selectedGame = null;
             await RefreshAllAsync();
-            ShowToast("Nota, review e listas atualizadas.");
+            ShowToast("Nota e review atualizadas.");
         }
         catch (Exception ex)
         {
@@ -1478,12 +1636,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         GameEntry game,
         bool closeDetailOverlay)
     {
-        var result = MessageBox.Show(
-            $"Remover \"{game.Name}\" da sua biblioteca?\n\nO jogo também será retirado de todas as listas.",
+        var confirmed = await ShowConfirmationAsync(
             "Remover jogo",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
-        if (result != MessageBoxResult.Yes)
+            $"Remover \"{game.Name}\" da sua biblioteca?\n\nO jogo também será retirado de todas as listas.",
+            "Confirmar");
+        if (!confirmed)
         {
             return;
         }
@@ -1496,6 +1653,42 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         await RefreshAllAsync();
         ShowToast("Jogo removido da biblioteca.");
+    }
+
+    private Task<bool> ShowConfirmationAsync(
+        string title,
+        string message,
+        string confirmText)
+    {
+        if (_confirmationCompletion is not null)
+        {
+            return Task.FromResult(false);
+        }
+
+        ConfirmationTitle.Text = title;
+        ConfirmationMessage.Text = message;
+        ConfirmationConfirmButton.Content = confirmText;
+        _confirmationCompletion = new TaskCompletionSource<bool>();
+        ConfirmationOverlay.Visibility = Visibility.Visible;
+        return _confirmationCompletion.Task;
+    }
+
+    private void ConfirmConfirmation_Click(object sender, RoutedEventArgs e)
+    {
+        CompleteConfirmation(true);
+    }
+
+    private void CancelConfirmation_Click(object sender, RoutedEventArgs e)
+    {
+        CompleteConfirmation(false);
+    }
+
+    private void CompleteConfirmation(bool confirmed)
+    {
+        ConfirmationOverlay.Visibility = Visibility.Collapsed;
+        var completion = _confirmationCompletion;
+        _confirmationCompletion = null;
+        completion?.TrySetResult(confirmed);
     }
 
     private void OpenSettings_Click(object sender, RoutedEventArgs e)
@@ -1557,6 +1750,90 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void OpenDataFolder_Click(object sender, RoutedEventArgs e)
     {
         OpenExternal(_database.AppDataDirectory);
+    }
+
+    private async void ExportData_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFolderDialog
+        {
+            Title = "Escolha onde salvar a exportação da JOGOTECA",
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            Multiselect = false
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        try
+        {
+            ExportDataButton.IsEnabled = false;
+            ExportDataButton.Content = "Exportando...";
+            var path = await _dataExportService.ExportGamesCsvAsync(dialog.FolderName);
+            ShowToast("CSV exportado com sucesso.");
+            OpenExternal(Path.GetDirectoryName(path) ?? dialog.FolderName);
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Não foi possível exportar os dados: {ex.Message}");
+        }
+        finally
+        {
+            ExportDataButton.IsEnabled = true;
+            ExportDataButton.Content = "Exportar dados";
+        }
+    }
+
+    private async void ResetDatabase_Click(object sender, RoutedEventArgs e)
+    {
+        var confirmed = await ShowConfirmationAsync(
+            "Resetar database",
+            "Isso vai apagar jogos, listas, notas, reviews, configurações e capas salvas.\n\nEssa ação não pode ser desfeita.",
+            "Resetar");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            SettingsOverlay.Visibility = Visibility.Collapsed;
+            DetailOverlay.Visibility = Visibility.Collapsed;
+            SearchOverlay.Visibility = Visibility.Collapsed;
+            CatalogDetailOverlay.Visibility = Visibility.Collapsed;
+            ManualGameOverlay.Visibility = Visibility.Collapsed;
+            ListEditorOverlay.Visibility = Visibility.Collapsed;
+
+            _selectedGame = null;
+            _selectedCatalogGame = null;
+            _editingListId = null;
+            _activeLibraryFilter = GameLibraryFilter.None;
+            _librarySortMode = LibrarySortMode.Default;
+            NotifySortHeaderChanges();
+            _libraryNameFilter = string.Empty;
+            LibraryNameFilterBox.Clear();
+
+            var currentTheme = _settings.Theme;
+            await _database.ResetDatabaseAsync();
+            _settings = new AppSettings { Theme = currentTheme };
+            await _settingsService.SaveAsync(_settings);
+
+            SearchResults.Clear();
+            CatalogSections.Clear();
+            SetSelectedListId(null);
+            SelectedListTitle = "Biblioteca";
+            SelectedListSubtitle = "Todos os jogos que você adicionou";
+            SetListActionButtonsVisible(false);
+            ConfigureProviderUi();
+            ShowLibraryView();
+            await RefreshAllAsync();
+            ShowToast("Database resetado.");
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Não foi possível resetar o database: {ex.Message}");
+        }
     }
 
     private void ConfigureProviderUi()
@@ -1643,6 +1920,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             : _activeLibraryFilter;
         var games = await _database.GetGamesAsync(
             _selectedListId,
+            _libraryNameFilter,
             libraryFilter: libraryFilter);
         Games.Clear();
         foreach (var game in games)

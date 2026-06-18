@@ -24,6 +24,10 @@
         <SolidColorBrush x:Key="PrimaryButtonForeground" Color="#FFFFFF" />
         <SolidColorBrush x:Key="DangerBackground" Color="#F3DEDA" />
         <SolidColorBrush x:Key="DangerForeground" Color="#A24949" />
+        <SolidColorBrush x:Key="ConfirmButtonBackground" Color="#BFE8C8" />
+        <SolidColorBrush x:Key="ConfirmButtonForeground" Color="#28543A" />
+        <SolidColorBrush x:Key="CancelButtonBackground" Color="#F2C0BC" />
+        <SolidColorBrush x:Key="CancelButtonForeground" Color="#7B2E2E" />
         <SolidColorBrush x:Key="NavSelectedBackground" Color="#D7D2E8" />
         <SolidColorBrush x:Key="NavCounterBackground" Color="#C4B8E9" />
         <SolidColorBrush x:Key="VersionBadgeBackground" Color="#E7E1F7" />
@@ -136,6 +140,16 @@
         <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
             <Setter Property="Foreground" Value="{DynamicResource DangerForeground}" />
             <Setter Property="Background" Value="{DynamicResource DangerBackground}" />
+        </Style>
+
+        <Style x:Key="ConfirmButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Foreground" Value="{DynamicResource ConfirmButtonForeground}" />
+            <Setter Property="Background" Value="{DynamicResource ConfirmButtonBackground}" />
+        </Style>
+
+        <Style x:Key="CancelButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Foreground" Value="{DynamicResource CancelButtonForeground}" />
+            <Setter Property="Background" Value="{DynamicResource CancelButtonBackground}" />
         </Style>
 
         <Style x:Key="TextInput" TargetType="TextBox">

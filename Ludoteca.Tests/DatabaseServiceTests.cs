@@ -115,7 +115,93 @@ public sealed class DatabaseServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task DisplaysYearOnlyReleasesAsFirstDayOfYear()
+    public async Task ReordersListsAndKeepsNewListsAtTheEnd()
+    {
+        var database = new DatabaseService(_testDirectory);
+        await database.InitializeAsync();
+
+        var initialLists = await database.GetListsAsync();
+        await database.MoveListAsync(initialLists[2].Id, initialLists[0].Id);
+
+        var reorderedLists = await database.GetListsAsync();
+        Assert.Equal(initialLists[2].Id, reorderedLists[0].Id);
+        Assert.Equal(initialLists[0].Id, reorderedLists[1].Id);
+        Assert.Equal(initialLists[1].Id, reorderedLists[2].Id);
+        Assert.Equal(new[] { 0, 1, 2 }, reorderedLists.Select(list => list.Position));
+
+        var customList = await database.CreateListAsync("Favoritos", "#ABCDEF", "⭐");
+        var listsAfterCreate = await database.GetListsAsync();
+
+        Assert.Equal(customList.Id, listsAfterCreate.Last().Id);
+        Assert.Equal(listsAfterCreate.Count - 1, listsAfterCreate.Last().Position);
+    }
+
+    [Fact]
+    public async Task ResetDatabaseClearsGamesSettingsAndRestoresDefaultLists()
+    {
+        var database = new DatabaseService(_testDirectory);
+        await database.InitializeAsync();
+
+        await database.CreateListAsync("Favoritos", "#ABCDEF", "⭐");
+        await database.UpsertGameAsync(
+            new GameSearchResult
+            {
+                Source = "manual",
+                ExternalId = Guid.NewGuid().ToString("N"),
+                Name = "Jogo para apagar"
+            },
+            string.Empty);
+        await database.SaveSettingsAsync(new Dictionary<string, string>
+        {
+            ["app_theme"] = "dark"
+        });
+
+        await database.ResetDatabaseAsync();
+
+        Assert.Empty(await database.GetGamesAsync(null));
+        Assert.Empty(await database.GetSettingsAsync());
+
+        var lists = await database.GetListsAsync();
+        Assert.Equal(3, lists.Count);
+        Assert.Equal(
+            new[] { "Quero jogar", "Jogando", "Finalizados" },
+            lists.Select(list => list.Name));
+    }
+
+    [Fact]
+    public async Task ExportsGamesCsv()
+    {
+        var database = new DatabaseService(_testDirectory);
+        await database.InitializeAsync();
+        var lists = await database.GetListsAsync();
+        var gameId = await database.UpsertGameAsync(
+            new GameSearchResult
+            {
+                Source = "manual",
+                ExternalId = Guid.NewGuid().ToString("N"),
+                Name = "Chrono Test",
+                Category = "RPG",
+                ReleaseYear = 1995
+            },
+            string.Empty);
+        await database.AddGameToListAsync(gameId, lists[0].Id);
+        await database.SaveGameDetailsAsync(gameId, 9, "Bom demais.", [lists[0].Id]);
+
+        var exportService = new DataExportService(database);
+        var path = await exportService.ExportGamesCsvAsync(Path.Combine(_testDirectory, "exports"));
+
+        Assert.True(File.Exists(path), path);
+        Assert.Equal(".csv", Path.GetExtension(path));
+
+        var gamesCsv = await File.ReadAllTextAsync(path);
+        Assert.Contains("Chrono Test", gamesCsv);
+        Assert.Contains("1995", gamesCsv);
+        Assert.Contains("Bom demais.", gamesCsv);
+        Assert.Contains(lists[0].Name, gamesCsv);
+    }
+
+    [Fact]
+    public async Task DisplaysYearOnlyReleasesAsYear()
     {
         var database = new DatabaseService(_testDirectory);
         await database.InitializeAsync();
@@ -131,7 +217,7 @@ public sealed class DatabaseServiceTests : IDisposable
             string.Empty);
 
         var saved = Assert.Single(await database.GetGamesAsync(null));
-        Assert.Equal("01/01/1998", saved.ReleaseDateDisplay);
+        Assert.Equal("1998", saved.ReleaseDateDisplay);
     }
 
     [Fact]

@@ -7,6 +7,7 @@ namespace Ludoteca.Services;
 public sealed class DatabaseService
 {
     private readonly string _connectionString;
+    private readonly string _databasePath;
 
     public DatabaseService(string? appDataDirectory = null)
     {
@@ -22,12 +23,12 @@ public sealed class DatabaseService
         Directory.CreateDirectory(CoversDirectory);
 
         var legacyDatabasePath = Path.Combine(AppDataDirectory, "ludoteca.db");
-        var databasePath = File.Exists(legacyDatabasePath)
+        _databasePath = File.Exists(legacyDatabasePath)
             ? legacyDatabasePath
             : Path.Combine(AppDataDirectory, "jogoteca.db");
         _connectionString = new SqliteConnectionStringBuilder
         {
-            DataSource = databasePath,
+            DataSource = _databasePath,
             ForeignKeys = true,
             Pooling = false
         }.ToString();
@@ -35,6 +36,7 @@ public sealed class DatabaseService
 
     public string AppDataDirectory { get; }
     public string CoversDirectory { get; }
+    public string DatabasePath => _databasePath;
 
     public async Task InitializeAsync()
     {
@@ -47,7 +49,8 @@ public sealed class DatabaseService
                 Name TEXT NOT NULL,
                 Color TEXT NOT NULL,
                 Emoji TEXT NOT NULL DEFAULT '🎮',
-                CreatedAt TEXT NOT NULL
+                CreatedAt TEXT NOT NULL,
+                Position INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS Games (
@@ -87,6 +90,7 @@ public sealed class DatabaseService
             """;
         await command.ExecuteNonQueryAsync();
         await EnsureListEmojiColumnAsync(connection);
+        await EnsureListPositionColumnAsync(connection);
         await EnsureGameReleaseDateColumnAsync(connection);
 
         var countCommand = connection.CreateCommand();
@@ -105,11 +109,11 @@ public sealed class DatabaseService
         var command = connection.CreateCommand();
         command.CommandText =
             """
-            SELECT l.Id, l.Name, l.Color, l.Emoji, COUNT(gl.GameId)
+            SELECT l.Id, l.Name, l.Color, l.Emoji, l.Position, COUNT(gl.GameId)
             FROM Lists l
             LEFT JOIN GameLists gl ON gl.ListId = l.Id
-            GROUP BY l.Id, l.Name, l.Color, l.Emoji
-            ORDER BY l.Id;
+            GROUP BY l.Id, l.Name, l.Color, l.Emoji, l.Position
+            ORDER BY l.Position, l.Id;
             """;
 
         await using var reader = await command.ExecuteReaderAsync();
@@ -121,7 +125,8 @@ public sealed class DatabaseService
                 Name = reader.GetString(1),
                 Color = reader.GetString(2),
                 Emoji = reader.GetString(3),
-                GameCount = reader.GetInt32(4)
+                Position = reader.GetInt32(4),
+                GameCount = reader.GetInt32(5)
             });
         }
 
@@ -134,8 +139,8 @@ public sealed class DatabaseService
         var command = connection.CreateCommand();
         command.CommandText =
             """
-            INSERT INTO Lists (Name, Color, Emoji, CreatedAt)
-            VALUES ($name, $color, $emoji, $createdAt);
+            INSERT INTO Lists (Name, Color, Emoji, CreatedAt, Position)
+            VALUES ($name, $color, $emoji, $createdAt, COALESCE((SELECT MAX(Position) + 1 FROM Lists), 0));
             SELECT last_insert_rowid();
             """;
         command.Parameters.AddWithValue("$name", name.Trim());
@@ -149,7 +154,8 @@ public sealed class DatabaseService
             Id = id,
             Name = name.Trim(),
             Color = color,
-            Emoji = NormalizeEmoji(emoji)
+            Emoji = NormalizeEmoji(emoji),
+            Position = await GetListPositionAsync(connection, id)
         };
     }
 
@@ -168,6 +174,48 @@ public sealed class DatabaseService
         command.Parameters.AddWithValue("$emoji", NormalizeEmoji(emoji));
         command.Parameters.AddWithValue("$id", listId);
         await command.ExecuteNonQueryAsync();
+    }
+
+    public async Task MoveListAsync(int movedListId, int targetListId)
+    {
+        if (movedListId == targetListId)
+        {
+            return;
+        }
+
+        await using var connection = await OpenConnectionAsync();
+        await using var transaction = connection.BeginTransaction();
+
+        var ids = new List<int>();
+        var select = connection.CreateCommand();
+        select.Transaction = transaction;
+        select.CommandText = "SELECT Id FROM Lists ORDER BY Position, Id;";
+        await using (var reader = await select.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                ids.Add(reader.GetInt32(0));
+            }
+        }
+
+        var movedIndex = ids.IndexOf(movedListId);
+        if (movedIndex < 0 || !ids.Contains(targetListId))
+        {
+            await transaction.CommitAsync();
+            return;
+        }
+
+        ids.RemoveAt(movedIndex);
+        var targetIndex = ids.IndexOf(targetListId);
+        if (targetIndex < 0)
+        {
+            await transaction.CommitAsync();
+            return;
+        }
+
+        ids.Insert(targetIndex, movedListId);
+        await UpdateListPositionsAsync(connection, transaction, ids);
+        await transaction.CommitAsync();
     }
 
     public async Task DeleteListAsync(int listId)
@@ -367,7 +415,7 @@ public sealed class DatabaseService
                    CASE WHEN gl.GameId IS NULL THEN 0 ELSE 1 END AS IsSelected
             FROM Lists l
             LEFT JOIN GameLists gl ON gl.ListId = l.Id AND gl.GameId = $gameId
-            ORDER BY l.Id;
+            ORDER BY l.Position, l.Id;
             """;
         command.Parameters.AddWithValue("$gameId", gameId);
 
@@ -510,6 +558,36 @@ public sealed class DatabaseService
         await transaction.CommitAsync();
     }
 
+    public async Task ResetDatabaseAsync()
+    {
+        SqliteConnection.ClearAllPools();
+
+        if (File.Exists(_databasePath))
+        {
+            File.Delete(_databasePath);
+        }
+
+        var writeAheadLogPath = $"{_databasePath}-wal";
+        if (File.Exists(writeAheadLogPath))
+        {
+            File.Delete(writeAheadLogPath);
+        }
+
+        var sharedMemoryPath = $"{_databasePath}-shm";
+        if (File.Exists(sharedMemoryPath))
+        {
+            File.Delete(sharedMemoryPath);
+        }
+
+        if (Directory.Exists(CoversDirectory))
+        {
+            Directory.Delete(CoversDirectory, recursive: true);
+        }
+
+        Directory.CreateDirectory(CoversDirectory);
+        await InitializeAsync();
+    }
+
     private async Task<SqliteConnection> OpenConnectionAsync()
     {
         var connection = new SqliteConnection(_connectionString);
@@ -537,20 +615,30 @@ public sealed class DatabaseService
             ("Finalizados", "#F5C6B5", ListEmojiCatalog.Trophy)
         };
 
-        foreach (var (name, color, emoji) in defaults)
+        for (var index = 0; index < defaults.Length; index++)
         {
+            var (name, color, emoji) = defaults[index];
             var command = connection.CreateCommand();
             command.CommandText =
                 """
-                INSERT INTO Lists (Name, Color, Emoji, CreatedAt)
-                VALUES ($name, $color, $emoji, $createdAt);
+                INSERT INTO Lists (Name, Color, Emoji, CreatedAt, Position)
+                VALUES ($name, $color, $emoji, $createdAt, $position);
                 """;
             command.Parameters.AddWithValue("$name", name);
             command.Parameters.AddWithValue("$color", color);
             command.Parameters.AddWithValue("$emoji", emoji);
             command.Parameters.AddWithValue("$createdAt", DateTimeOffset.UtcNow.ToString("O"));
+            command.Parameters.AddWithValue("$position", index);
             await command.ExecuteNonQueryAsync();
         }
+    }
+
+    private static async Task<int> GetListPositionAsync(SqliteConnection connection, int listId)
+    {
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT Position FROM Lists WHERE Id = $id;";
+        command.Parameters.AddWithValue("$id", listId);
+        return Convert.ToInt32(await command.ExecuteScalarAsync());
     }
 
     private static async Task EnsureListEmojiColumnAsync(SqliteConnection connection)
@@ -578,6 +666,65 @@ public sealed class DatabaseService
         var alter = connection.CreateCommand();
         alter.CommandText = "ALTER TABLE Lists ADD COLUMN Emoji TEXT NOT NULL DEFAULT '🎮';";
         await alter.ExecuteNonQueryAsync();
+    }
+
+    private static async Task EnsureListPositionColumnAsync(SqliteConnection connection)
+    {
+        var check = connection.CreateCommand();
+        check.CommandText = "PRAGMA table_info(Lists);";
+        var hasPosition = false;
+        await using (var reader = await check.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                if (reader.GetString(1).Equals("Position", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasPosition = true;
+                    break;
+                }
+            }
+        }
+
+        if (!hasPosition)
+        {
+            var alter = connection.CreateCommand();
+            alter.CommandText = "ALTER TABLE Lists ADD COLUMN Position INTEGER NOT NULL DEFAULT 0;";
+            await alter.ExecuteNonQueryAsync();
+        }
+
+        await NormalizeListPositionsAsync(connection);
+    }
+
+    private static async Task NormalizeListPositionsAsync(SqliteConnection connection)
+    {
+        var ids = new List<int>();
+        var select = connection.CreateCommand();
+        select.CommandText = "SELECT Id FROM Lists ORDER BY Position, Id;";
+        await using (var reader = await select.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                ids.Add(reader.GetInt32(0));
+            }
+        }
+
+        await UpdateListPositionsAsync(connection, null, ids);
+    }
+
+    private static async Task UpdateListPositionsAsync(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        IReadOnlyList<int> ids)
+    {
+        for (var index = 0; index < ids.Count; index++)
+        {
+            var update = connection.CreateCommand();
+            update.Transaction = transaction;
+            update.CommandText = "UPDATE Lists SET Position = $position WHERE Id = $id;";
+            update.Parameters.AddWithValue("$position", index);
+            update.Parameters.AddWithValue("$id", ids[index]);
+            await update.ExecuteNonQueryAsync();
+        }
     }
 
     private static async Task EnsureGameReleaseDateColumnAsync(SqliteConnection connection)

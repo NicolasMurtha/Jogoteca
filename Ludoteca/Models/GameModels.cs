@@ -55,7 +55,7 @@ public sealed class GameEntry : ObservableModel
         TryParseReleaseDate(ReleaseDate, out var releaseDate)
             ? releaseDate.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)
             : ReleaseYear.HasValue
-                ? new DateTime(ReleaseYear.Value, 1, 1).ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)
+                ? ReleaseYear.Value.ToString(CultureInfo.InvariantCulture)
                 : "Data desconhecida";
     public DateTime? ReleaseSortDate =>
         TryParseReleaseDate(ReleaseDate, out var releaseDate)
@@ -109,6 +109,8 @@ public sealed class GameEntry : ObservableModel
 
 public sealed record GameDragData(GameEntry Game, int? SourceListId);
 
+public sealed record ListDragData(int ListId);
+
 public sealed record ListEmojiOption(string Name, string Emoji);
 
 public static class ListEmojiCatalog
@@ -157,6 +159,7 @@ public sealed class GameList : ObservableModel
     private int _gameCount;
 
     public int Id { get; init; }
+    public int Position { get; init; }
 
     public string Name
     {

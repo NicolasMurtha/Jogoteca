@@ -11,7 +11,7 @@ on:
         required: true
 
 env:
-  VERSION: ${{ inputs.version || github.ref_name }}
+  RELEASE_TAG: ${{ inputs.version || github.ref_name }}
 
 permissions:
   contents: write
@@ -41,14 +41,14 @@ jobs:
 
       - name: Zip
         shell: pwsh
-        run: Compress-Archive -Path dist/JOGOTECA-win-x64/JOGOTECA.exe -DestinationPath "JOGOTECA-${{ env.VERSION }}-win-x64.zip"
+        run: Compress-Archive -Path dist/JOGOTECA-win-x64/JOGOTECA.exe -DestinationPath "JOGOTECA-${{ env.RELEASE_TAG }}-win-x64.zip"
 
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.VERSION }}
+          tag_name: ${{ env.RELEASE_TAG }}
           target_commitish: ${{ github.sha }}
-          name: JOGOTECA ${{ env.VERSION }}
+          name: JOGOTECA ${{ env.RELEASE_TAG }}
           generate_release_notes: true
           files: |
             dist/JOGOTECA-win-x64/JOGOTECA.exe
-            JOGOTECA-${{ env.VERSION }}-win-x64.zip
+            JOGOTECA-${{ env.RELEASE_TAG }}-win-x64.zip

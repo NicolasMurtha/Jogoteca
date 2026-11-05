@@ -9,7 +9,7 @@ if (Test-Path $localDotnet) {
 else {
     $dotnetCommand = Get-Command dotnet -ErrorAction SilentlyContinue
     if (-not $dotnetCommand) {
-        throw "O SDK do .NET 8 não foi encontrado."
+        throw "O SDK do .NET 10 não foi encontrado."
     }
 
     $dotnet = $dotnetCommand.Source

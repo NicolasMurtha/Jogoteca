@@ -35,7 +35,7 @@ public sealed class DatabaseServiceTests : IDisposable
 
         Assert.Equal(firstId, secondId);
         Assert.Single(await database.GetGamesAsync(null));
-        Assert.Empty((await database.GetMembershipsAsync(firstId)).Where(item => item.IsSelected));
+        Assert.DoesNotContain(await database.GetMembershipsAsync(firstId), item => item.IsSelected);
 
         await database.AddGameToListAsync(firstId, defaultLists[0].Id);
         await database.AddGameToListAsync(firstId, favorites.Id);
@@ -103,7 +103,7 @@ public sealed class DatabaseServiceTests : IDisposable
         Assert.Equal(string.Empty, saved.ReleaseDate);
         Assert.Equal("Data desconhecida", saved.ReleaseDateDisplay);
         Assert.Equal(string.Empty, saved.CoverUrl);
-        Assert.Empty((await database.GetMembershipsAsync(gameId)).Where(item => item.IsSelected));
+        Assert.DoesNotContain(await database.GetMembershipsAsync(gameId), item => item.IsSelected);
 
         var stats = await database.GetStatsAsync();
         Assert.Equal(1, stats.UnratedGames);

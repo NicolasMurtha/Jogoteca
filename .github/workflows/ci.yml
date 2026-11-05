@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Test
+        run: dotnet test Ludoteca.sln -c Release
+
+      - name: Publish JOGOTECA.exe
+        run: >-
+          dotnet publish Ludoteca/Ludoteca.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:PublishReadyToRun=true
+          -p:DebugType=None
+          -o dist/JOGOTECA-win-x64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JOGOTECA-win-x64
+          path: dist/JOGOTECA-win-x64/JOGOTECA.exe
+          retention-days: 30

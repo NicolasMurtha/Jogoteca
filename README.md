@@ -1,79 +1,85 @@
+<div align="center">
+
+<img src="Ludoteca/Assets/LudotecaMark.png" width="96" alt="JOGOTECA" />
+
 # JOGOTECA
 
-Aplicativo desktop local para organizar um backlog pessoal de jogos. Feito em
-WPF/.NET 8, com banco SQLite local e catálogo opcional pelo IGDB com fallback
-automático para o RAWG.
+**Seu backlog de jogos, finalmente organizado.**
 
-## Recursos
+Descubra lançamentos, monte suas listas e acompanhe tudo o que você joga,
+quer jogar e já zerou, num app bonito, rápido e 100% no seu computador.
 
-- Tela Descobrir em formato de streaming, com faixas horizontais empilhadas.
-- Seções Para você, Trending games, Mais aguardados, Próximos lançamentos e Últimos lançamentos.
-- Biblioteca independente: todo jogo adicionado entra primeiro nela.
-- Organização kanban: arraste um card de uma lista para outra para movê-lo.
-- Ações no hover para retirar somente da lista atual ou excluir da biblioteca.
-- Criação, edição e exclusão de listas com nome, emoji e cor.
-- Cadastro manual exigindo somente o nome.
-- Capa, nome, descrição, gêneros e ano de lançamento opcionais.
-- Nota pessoal de 0 a 10 e review por jogo.
-- Busca no IGDB e fallback para o RAWG quando ambos estão configurados.
-- Funcionamento com apenas uma das APIs configurada ou sem nenhuma API.
-- Cache local das capas e credenciais protegidas pelo Windows com DPAPI.
+[**⬇️ Baixar para Windows (grátis)**](https://github.com/NicolasMurtha/Jogoteca/releases/latest)
 
-## Executar
+</div>
 
-Abra:
+![Tela Descobrir da JOGOTECA](design/jogoteca-discovery-netflix.png)
 
-```text
-dist\JOGOTECA-win-x64\JOGOTECA.exe
-```
+## Por que a JOGOTECA?
 
-Nenhuma API é obrigatória. Use **Adicionar jogo** e
-**Adicionar manualmente** para cadastrar apenas o que souber.
+Planilhas, notas no celular, prints esquecidos na galeria... A JOGOTECA junta
+tudo num só lugar e transforma a pilha de jogos pendentes num catálogo que dá
+vontade de abrir.
 
-### RAWG
+- **Descubra o que jogar** em faixas no estilo streaming: *Para você*,
+  *Trending*, *Mais aguardados*, *Próximos lançamentos* e *Últimos lançamentos*.
+- **Organize como um kanban:** arraste os jogos entre listas como *Quero
+  jogar*, *Jogando* e *Finalizados*, ou crie as suas com nome, emoji e cor.
+- **Saiba quanto tempo vai levar:** tempo estimado para zerar cada jogo.
+- **Compare opiniões:** veja a nota do público ao lado da sua nota pessoal.
+- **Registre sua jornada:** dê nota de 0 a 10, escreva reviews e marque as
+  datas de início e de término.
+- **Não perca lançamentos:** a JOGOTECA avisa quando um jogo da sua
+  biblioteca é lançado.
+- **Tema claro e escuro**, para jogar de dia ou de madrugada.
+- **Leve seus dados com você:** exporte a biblioteca para CSV quando quiser.
 
-Crie uma chave em:
+![Listas em estilo kanban](design/jogoteca-kanban-hover.png)
 
-https://rawg.io/apidocs
+## Seus dados são seus
 
-Cole a chave no campo **RAWG API Key**.
+- **Sem conta e sem nuvem:** tudo fica salvo no seu computador.
+- **Funciona offline:** biblioteca, listas e cadastro manual não precisam de
+  internet.
+- **Chaves de API protegidas** pela criptografia do próprio Windows.
 
-### IGDB
+## Como começar
 
-Crie as credenciais de uma aplicação Twitch seguindo:
+1. [Baixe a versão mais recente](https://github.com/NicolasMurtha/Jogoteca/releases/latest).
+2. Abra o `JOGOTECA.exe`. Não precisa instalar nada.
+3. Pronto! Comece adicionando jogos manualmente, só o nome já basta.
 
-https://api-docs.igdb.com/#account-creation
+> Se o Windows mostrar o aviso *"O Windows protegeu o computador"*, clique em
+> **Mais informações** e depois em **Executar assim mesmo**.
 
-Informe o **Client ID** e o **Client Secret**. Com apenas uma fonte configurada,
-somente ela é consultada. Com as duas, o IGDB é usado primeiro e o RAWG entra
-como fallback.
+### Catálogo online (opcional)
 
-## Dados locais
+Para buscar jogos e ver capas, notas, tempos e lançamentos, conecte uma fonte
+de dados gratuita em **Configurações**:
 
-Novas instalações guardam o banco, as capas e as configurações em:
+- **IGDB:** crie um *Client ID* e um *Client Secret* seguindo
+  [este guia](https://api-docs.igdb.com/#account-creation).
+- **RAWG:** crie uma chave em [rawg.io/apidocs](https://rawg.io/apidocs).
 
-```text
-%LOCALAPPDATA%\JOGOTECA
-```
+Com as duas configuradas, a JOGOTECA usa o IGDB e recorre ao RAWG
+automaticamente quando precisar.
 
-Instalações atualizadas continuam usando `%LOCALAPPDATA%\Ludoteca`
-automaticamente, preservando todos os dados da versão anterior.
+## Para desenvolvedores
 
-## Compilar
-
-Requer o SDK do .NET 8 no Windows:
+Feita em WPF com .NET 10 e SQLite.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-O script executa os testes e publica uma versão autocontida para Windows x64.
+O script executa os testes e gera o executável em
+`dist\JOGOTECA-win-x64\JOGOTECA.exe`. Requer o SDK do .NET 10 no Windows.
 
-## Estrutura
+Os dados ficam em `%LOCALAPPDATA%\JOGOTECA`. Instalações antigas continuam
+usando `%LOCALAPPDATA%\Ludoteca` automaticamente, sem perder nada.
 
-```text
-Ludoteca\          Aplicativo WPF
-Ludoteca.Tests\    Testes de persistência, catálogo e fallback das APIs
-design\            Capturas de verificação visual
-dist\              Executável publicado
-```
+---
+
+<div align="center">
+<sub>Dados de jogos fornecidos por <a href="https://www.igdb.com/">IGDB</a> e <a href="https://rawg.io/">RAWG</a>.</sub>
+</div>

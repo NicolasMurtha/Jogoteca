@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
@@ -188,6 +189,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string _unorganizedGameCount = "0";
     private string _averageRating = "-";
     private bool _isDarkTheme;
+    private bool _hasUnreadNotifications;
 
     public MainWindow()
     {
@@ -246,6 +248,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     ];
     public ObservableCollection<ListMembershipOption> MembershipOptions { get; } = [];
+    public ObservableCollection<ReleaseNotification> ReleaseNotifications { get; } = [];
+    public ObservableCollection<UpcomingReleaseWatch> UpcomingReleaseWatches { get; } = [];
 
     public bool IsViewingList => _selectedListId.HasValue;
     public bool IsViewingLibrary => !_selectedListId.HasValue;
@@ -281,6 +285,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ThemeToggleIcon)));
             }
         }
+    }
+
+    public bool HasUnreadNotifications
+    {
+        get => _hasUnreadNotifications;
+        private set => SetField(ref _hasUnreadNotifications, value);
     }
 
     public string SelectedListTitle
@@ -400,6 +410,38 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             ShowToast($"Não foi possível salvar o tema: {ex.Message}");
         }
+    }
+
+    private async void ToggleNotifications_Click(object sender, RoutedEventArgs e)
+    {
+        var shouldOpen = NotificationsFlyout.Visibility != Visibility.Visible;
+        NotificationsFlyout.Visibility = shouldOpen
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        if (!shouldOpen)
+        {
+            return;
+        }
+
+        try
+        {
+            await RefreshReleaseNotificationsAsync();
+            if (HasUnreadNotifications)
+            {
+                await _database.MarkReleaseNotificationsReadAsync();
+                await RefreshReleaseNotificationsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Nao foi possivel carregar notificacoes: {ex.Message}");
+        }
+    }
+
+    private void CloseNotifications_Click(object sender, RoutedEventArgs e)
+    {
+        NotificationsFlyout.Visibility = Visibility.Collapsed;
     }
 
     private void ToggleMaximize()
@@ -1377,20 +1419,31 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var gameToSave = game;
             try
             {
-                await _gameApi.EnrichAsync(game, _settings, cancellation.Token);
+                gameToSave = await _gameApi.GetGameDetailsAsync(
+                    game,
+                    _settings,
+                    cancellation.Token) ?? game;
             }
             catch
             {
-                // Search data is enough when a provider detail call is unavailable.
+                try
+                {
+                    await _gameApi.EnrichAsync(game, _settings, cancellation.Token);
+                }
+                catch
+                {
+                    // Search data is enough when a provider detail call is unavailable.
+                }
             }
 
             var coverPath = string.Empty;
             try
             {
                 coverPath = await _gameApi.DownloadCoverAsync(
-                    game,
+                    gameToSave,
                     _database.CoversDirectory,
                     cancellation.Token);
             }
@@ -1399,7 +1452,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 // The remote URL remains available when local cover caching fails.
             }
 
-            var gameId = await _database.UpsertGameAsync(game, coverPath);
+            var gameId = await _database.UpsertGameAsync(gameToSave, coverPath);
             var addedToCurrentList = false;
             if (_selectedListId.HasValue)
             {
@@ -1553,6 +1606,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             : NoRatingSliderValue;
         UpdateRatingValueText();
         ReviewTextBox.Text = game.Review;
+        StartedAtPicker.SelectedDate = ParseStoredDate(game.StartedAt);
+        FinishedAtPicker.SelectedDate = ParseStoredDate(game.FinishedAt);
         _isInitializingDetail = false;
         DetailOverlay.Visibility = Visibility.Visible;
     }
@@ -1590,6 +1645,25 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return value <= NoRatingSliderValue + 0.01;
     }
 
+    private static DateTime? ParseStoredDate(string value)
+    {
+        return DateTime.TryParseExact(
+            value,
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out var date)
+            ? date
+            : null;
+    }
+
+    private static string FormatStoredDate(DateTime? value)
+    {
+        return value.HasValue
+            ? value.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            : string.Empty;
+    }
+
     private async void SaveGameDetails_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedGame is null)
@@ -1600,6 +1674,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         double? rating = IsNoRatingValue(RatingSlider.Value)
             ? null
             : RatingSlider.Value;
+        var startedAt = FormatStoredDate(StartedAtPicker.SelectedDate);
+        var finishedAt = FormatStoredDate(FinishedAtPicker.SelectedDate);
+        if (StartedAtPicker.SelectedDate.HasValue &&
+            FinishedAtPicker.SelectedDate.HasValue &&
+            StartedAtPicker.SelectedDate.Value.Date > FinishedAtPicker.SelectedDate.Value.Date)
+        {
+            ShowToast("A data de inicio nao pode ser depois da finalizacao.");
+            return;
+        }
+
         var selectedListIds = MembershipOptions
             .Where(option => option.IsSelected)
             .Select(option => option.ListId);
@@ -1610,6 +1694,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 _selectedGame.Id,
                 rating,
                 ReviewTextBox.Text,
+                startedAt,
+                finishedAt,
                 selectedListIds);
             DetailOverlay.Visibility = Visibility.Collapsed;
             _selectedGame = null;
@@ -1785,6 +1871,49 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private async void ClearLibrary_Click(object sender, RoutedEventArgs e)
+    {
+        var confirmed = await ShowConfirmationAsync(
+            "Limpar biblioteca",
+            "Isso vai apagar todos os jogos, notas, reviews e capas salvas.\n\nSuas listas, configurações e chaves API serão mantidas.",
+            "Limpar");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            SettingsOverlay.Visibility = Visibility.Collapsed;
+            DetailOverlay.Visibility = Visibility.Collapsed;
+            SearchOverlay.Visibility = Visibility.Collapsed;
+            CatalogDetailOverlay.Visibility = Visibility.Collapsed;
+            ManualGameOverlay.Visibility = Visibility.Collapsed;
+            ListEditorOverlay.Visibility = Visibility.Collapsed;
+
+            _selectedGame = null;
+            _selectedCatalogGame = null;
+            _activeLibraryFilter = GameLibraryFilter.None;
+            _librarySortMode = LibrarySortMode.Default;
+            NotifySortHeaderChanges();
+            _libraryNameFilter = string.Empty;
+            LibraryNameFilterBox.Clear();
+            SetSelectedListId(null);
+            SelectedListTitle = "Biblioteca";
+            SelectedListSubtitle = "Todos os jogos que você adicionou";
+            SetListActionButtonsVisible(false);
+
+            await _database.ClearLibraryAsync();
+            ShowLibraryView();
+            await RefreshAllAsync();
+            ShowToast("Biblioteca limpa.");
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Não foi possível limpar a biblioteca: {ex.Message}");
+        }
+    }
+
     private async void ResetDatabase_Click(object sender, RoutedEventArgs e)
     {
         var confirmed = await ShowConfirmationAsync(
@@ -1885,6 +2014,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         await RefreshListsAsync();
         await RefreshLibraryAsync();
+        await RefreshReleaseNotificationsAsync();
     }
 
     private async Task RefreshListsAsync()
@@ -1955,6 +2085,40 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (Games.Count == 0)
         {
             SetEmptyLibraryMessage();
+        }
+    }
+
+    private async Task RefreshReleaseNotificationsAsync()
+    {
+        await _database.SyncReleaseNotificationsAsync();
+        var notifications = await _database.GetReleaseNotificationsAsync();
+        var watches = await _database.GetUpcomingReleaseWatchesAsync();
+
+        ReleaseNotifications.Clear();
+        foreach (var notification in notifications)
+        {
+            ReleaseNotifications.Add(notification);
+        }
+
+        UpcomingReleaseWatches.Clear();
+        foreach (var watch in watches)
+        {
+            UpcomingReleaseWatches.Add(watch);
+        }
+
+        HasUnreadNotifications = notifications.Any(notification => !notification.IsRead);
+        if (NotificationEmptyState is not null)
+        {
+            NotificationEmptyState.Visibility = ReleaseNotifications.Count == 0
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+
+        if (UpcomingReleaseSection is not null)
+        {
+            UpcomingReleaseSection.Visibility = UpcomingReleaseWatches.Count == 0
+                ? Visibility.Collapsed
+                : Visibility.Visible;
         }
     }
 

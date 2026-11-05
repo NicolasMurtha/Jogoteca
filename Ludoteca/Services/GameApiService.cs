@@ -12,6 +12,7 @@ namespace Ludoteca.Services;
 public sealed class GameApiService : IDisposable
 {
     private static readonly TimeSpan CatalogCacheLifetime = TimeSpan.FromHours(12);
+    private const int IgdbExactDateFormat = 0;
     private readonly HttpClient _httpClient;
     private readonly string? _catalogCacheDirectory;
     private readonly SemaphoreSlim _igdbRequestGate = new(1, 1);
@@ -340,6 +341,53 @@ public sealed class GameApiService : IDisposable
         }
     }
 
+    public async Task<GameSearchResult?> GetGameDetailsAsync(
+        GameSearchResult game,
+        AppSettings settings,
+        CancellationToken cancellationToken)
+    {
+        return await GetGameDetailsAsync(
+            game.Source,
+            game.ExternalId,
+            settings,
+            cancellationToken);
+    }
+
+    public async Task<GameSearchResult?> GetGameDetailsAsync(
+        GameEntry game,
+        AppSettings settings,
+        CancellationToken cancellationToken)
+    {
+        return await GetGameDetailsAsync(
+            game.Source,
+            game.ExternalId,
+            settings,
+            cancellationToken);
+    }
+
+    private async Task<GameSearchResult?> GetGameDetailsAsync(
+        string source,
+        string externalId,
+        AppSettings settings,
+        CancellationToken cancellationToken)
+    {
+        if (source.Equals("igdb", StringComparison.OrdinalIgnoreCase))
+        {
+            return settings.HasIgdb
+                ? await GetIgdbGameByIdAsync(externalId, settings, cancellationToken)
+                : null;
+        }
+
+        if (source.Equals("rawg", StringComparison.OrdinalIgnoreCase))
+        {
+            return settings.HasRawg
+                ? await GetRawgGameByIdAsync(externalId, settings, cancellationToken)
+                : null;
+        }
+
+        return null;
+    }
+
     public async Task<string> DownloadCoverAsync(
         GameSearchResult game,
         string coversDirectory,
@@ -395,7 +443,9 @@ public sealed class GameApiService : IDisposable
         request.Content = new StringContent(
             $"""
              search "{escapedQuery}";
-             fields id,name,summary,first_release_date,genres.name,cover.image_id;
+             fields id,name,summary,first_release_date,release_dates.date,
+                    release_dates.date_format,release_dates.y,release_dates.release_region,
+                    genres.name,cover.image_id,rating,total_rating,aggregated_rating;
              where version_parent = null;
              limit 30;
              """,
@@ -415,9 +465,7 @@ public sealed class GameApiService : IDisposable
             var description = item.TryGetProperty("summary", out var summary)
                 ? summary.GetString() ?? string.Empty
                 : string.Empty;
-            var releaseDate = TryReadUnixDate(item, "first_release_date");
-            var year = ReleaseYearFromDate(releaseDate) ??
-                       TryReadUnixYear(item, "first_release_date");
+            var (releaseDate, year) = ReadIgdbReleaseInfo(item);
             var category = ReadGenres(item);
             var coverUrl = string.Empty;
             if (item.TryGetProperty("cover", out var cover) &&
@@ -436,11 +484,101 @@ public sealed class GameApiService : IDisposable
                 Category = category,
                 ReleaseYear = year,
                 ReleaseDate = releaseDate,
-                CoverUrl = coverUrl
+                CoverUrl = coverUrl,
+                PublicRating = ReadIgdbPublicRating(item)
             });
         }
 
         return results;
+    }
+
+    private async Task<GameSearchResult?> GetIgdbGameByIdAsync(
+        string externalId,
+        AppSettings settings,
+        CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(externalId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id))
+        {
+            return null;
+        }
+
+        var token = await GetIgdbTokenAsync(settings, cancellationToken);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "https://api.igdb.com/v4/games");
+        request.Headers.Add("Client-ID", settings.IgdbClientId);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Content = new StringContent(
+            $"""
+             fields id,name,summary,first_release_date,release_dates.date,
+                    release_dates.date_format,release_dates.y,release_dates.release_region,
+                    genres.name,cover.image_id,rating,total_rating,aggregated_rating;
+             where id = {id};
+             limit 1;
+             """,
+            Encoding.UTF8,
+            "text/plain");
+
+        using var response = await SendIgdbAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+        var result = ParseIgdbGames(document.RootElement).FirstOrDefault();
+        if (result is not null)
+        {
+            try
+            {
+                result.CompletionTimeHours = await GetIgdbCompletionTimeHoursAsync(
+                    id,
+                    settings,
+                    cancellationToken);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+            {
+                result.CompletionTimeHours = null;
+            }
+        }
+
+        return result;
+    }
+
+    private async Task<double?> GetIgdbCompletionTimeHoursAsync(
+        long gameId,
+        AppSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var token = await GetIgdbTokenAsync(settings, cancellationToken);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "https://api.igdb.com/v4/game_time_to_beats");
+        request.Headers.Add("Client-ID", settings.IgdbClientId);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Content = new StringContent(
+            $"""
+             fields game_id,hastily,normally,completely;
+             where game_id = {gameId};
+             limit 1;
+             """,
+            Encoding.UTF8,
+            "text/plain");
+
+        using var response = await SendIgdbAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+        var item = document.RootElement.ValueKind == JsonValueKind.Array
+            ? document.RootElement.EnumerateArray().FirstOrDefault()
+            : default;
+
+        if (item.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        return SecondsToHours(
+            TryReadPositiveDouble(item, "normally") ??
+            TryReadPositiveDouble(item, "completely") ??
+            TryReadPositiveDouble(item, "hastily"));
     }
 
     private async Task<IReadOnlyList<GameSearchResult>> GetIgdbCatalogAsync(
@@ -578,11 +716,58 @@ public sealed class GameApiService : IDisposable
                 CoverUrl = item.TryGetProperty("background_image", out var cover) &&
                            cover.ValueKind == JsonValueKind.String
                     ? cover.GetString() ?? string.Empty
-                    : string.Empty
+                    : string.Empty,
+                PublicRating = ReadRawgPublicRating(item),
+                CompletionTimeHours = ReadRawgCompletionTimeHours(item)
             });
         }
 
         return results;
+    }
+
+    private async Task<GameSearchResult?> GetRawgGameByIdAsync(
+        string externalId,
+        AppSettings settings,
+        CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(externalId, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+        {
+            return null;
+        }
+
+        var url =
+            $"https://api.rawg.io/api/games/{Uri.EscapeDataString(externalId)}" +
+            $"?key={Uri.EscapeDataString(settings.RawgApiKey)}";
+        using var response = await _httpClient.GetAsync(url, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+        var root = document.RootElement;
+        var releaseDate = TryReadDate(root, "released");
+
+        return new GameSearchResult
+        {
+            Source = "rawg",
+            ExternalId = root.TryGetProperty("id", out var id)
+                ? id.GetInt64().ToString(CultureInfo.InvariantCulture)
+                : externalId,
+            Name = root.TryGetProperty("name", out var name)
+                ? name.GetString() ?? "Jogo sem nome"
+                : "Jogo sem nome",
+            Description = root.TryGetProperty("description_raw", out var description)
+                ? description.GetString() ?? string.Empty
+                : string.Empty,
+            Category = ReadGenres(root),
+            ReleaseYear = ReleaseYearFromDate(releaseDate),
+            ReleaseDate = releaseDate,
+            CoverUrl = root.TryGetProperty("background_image", out var cover) &&
+                       cover.ValueKind == JsonValueKind.String
+                ? cover.GetString() ?? string.Empty
+                : string.Empty,
+            PublicRating = ReadRawgPublicRating(root),
+            CompletionTimeHours = ReadRawgCompletionTimeHours(root)
+        };
     }
 
     private async Task<IReadOnlyList<GameSearchResult>> GetRawgCatalogAsync(
@@ -627,6 +812,60 @@ public sealed class GameApiService : IDisposable
         return ReleaseYearFromDate(TryReadUnixDate(item, propertyName));
     }
 
+    private static (string ReleaseDate, int? ReleaseYear) ReadIgdbReleaseInfo(JsonElement item)
+    {
+        if (item.TryGetProperty("release_dates", out var releaseDates) &&
+            releaseDates.ValueKind == JsonValueKind.Array)
+        {
+            var exactDate = releaseDates.EnumerateArray()
+                .Select(ReadIgdbReleaseDate)
+                .Where(date => !string.IsNullOrWhiteSpace(date))
+                .OrderBy(date => date, StringComparer.Ordinal)
+                .FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(exactDate))
+            {
+                return (exactDate, ReleaseYearFromDate(exactDate));
+            }
+
+            var year = releaseDates.EnumerateArray()
+                .Select(ReadIgdbReleaseYear)
+                .Where(value => value.HasValue)
+                .Select(value => value!.Value)
+                .Order()
+                .FirstOrDefault();
+            if (year > 0)
+            {
+                return (string.Empty, year);
+            }
+        }
+
+        var fallbackDate = TryReadUnixDate(item, "first_release_date");
+        return (fallbackDate, ReleaseYearFromDate(fallbackDate) ?? TryReadUnixYear(item, "first_release_date"));
+    }
+
+    private static string ReadIgdbReleaseDate(JsonElement releaseDate)
+    {
+        if (!releaseDate.TryGetProperty("date_format", out var format) ||
+            format.ValueKind != JsonValueKind.Number ||
+            format.GetInt32() != IgdbExactDateFormat)
+        {
+            return string.Empty;
+        }
+
+        return TryReadUnixDate(releaseDate, "date");
+    }
+
+    private static int? ReadIgdbReleaseYear(JsonElement releaseDate)
+    {
+        if (releaseDate.TryGetProperty("y", out var year) &&
+            year.ValueKind == JsonValueKind.Number)
+        {
+            return year.GetInt32();
+        }
+
+        return TryReadUnixYear(releaseDate, "date");
+    }
+
     private static string TryReadUnixDate(JsonElement item, string propertyName)
     {
         if (!item.TryGetProperty(propertyName, out var value) ||
@@ -651,6 +890,55 @@ public sealed class GameApiService : IDisposable
         }
 
         return date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    }
+
+    private static double? ReadIgdbPublicRating(JsonElement item)
+    {
+        return NormalizeRating(
+            TryReadPositiveDouble(item, "rating") ??
+            TryReadPositiveDouble(item, "total_rating") ??
+            TryReadPositiveDouble(item, "aggregated_rating"),
+            100);
+    }
+
+    private static double? ReadRawgPublicRating(JsonElement item)
+    {
+        return NormalizeRating(TryReadPositiveDouble(item, "rating"), 5);
+    }
+
+    private static double? ReadRawgCompletionTimeHours(JsonElement item)
+    {
+        return TryReadPositiveDouble(item, "playtime");
+    }
+
+    private static double? NormalizeRating(double? value, double sourceMax)
+    {
+        if (!value.HasValue || value.Value <= 0 || sourceMax <= 0)
+        {
+            return null;
+        }
+
+        return Math.Round(Math.Clamp(value.Value / sourceMax * 10, 0, 10), 1);
+    }
+
+    private static double? SecondsToHours(double? seconds)
+    {
+        return seconds.HasValue
+            ? Math.Round(seconds.Value / 3600, 1)
+            : null;
+    }
+
+    private static double? TryReadPositiveDouble(JsonElement item, string propertyName)
+    {
+        if (!item.TryGetProperty(propertyName, out var value) ||
+            value.ValueKind != JsonValueKind.Number ||
+            !value.TryGetDouble(out var number) ||
+            number <= 0)
+        {
+            return null;
+        }
+
+        return number;
     }
 
     private static int? ReleaseYearFromDate(string releaseDate)
@@ -868,8 +1156,10 @@ public sealed class GameApiService : IDisposable
         int offset)
     {
         return $"""
-                fields id,name,summary,first_release_date,genres.name,cover.image_id,
-                       rating,rating_count,total_rating_count,hypes;
+                fields id,name,summary,first_release_date,release_dates.date,
+                       release_dates.date_format,release_dates.y,release_dates.release_region,
+                       genres.name,cover.image_id,
+                       rating,total_rating,aggregated_rating,rating_count,total_rating_count,hypes;
                 where version_parent = null & cover != null & first_release_date != null &
                       {feedFilter};
                 sort {sort};
@@ -892,7 +1182,7 @@ public sealed class GameApiService : IDisposable
         var results = new List<GameSearchResult>();
         foreach (var item in items.EnumerateArray())
         {
-            var releaseDate = TryReadUnixDate(item, "first_release_date");
+            var (releaseDate, year) = ReadIgdbReleaseInfo(item);
             var coverUrl = string.Empty;
             if (item.TryGetProperty("cover", out var cover) &&
                 cover.TryGetProperty("image_id", out var imageId))
@@ -910,9 +1200,10 @@ public sealed class GameApiService : IDisposable
                     ? summary.GetString() ?? string.Empty
                     : string.Empty,
                 Category = ReadGenres(item),
-                ReleaseYear = ReleaseYearFromDate(releaseDate),
+                ReleaseYear = year,
                 ReleaseDate = releaseDate,
-                CoverUrl = coverUrl
+                CoverUrl = coverUrl,
+                PublicRating = ReadIgdbPublicRating(item)
             });
         }
 
@@ -941,7 +1232,9 @@ public sealed class GameApiService : IDisposable
                 CoverUrl = item.TryGetProperty("background_image", out var cover) &&
                            cover.ValueKind == JsonValueKind.String
                     ? cover.GetString() ?? string.Empty
-                    : string.Empty
+                    : string.Empty,
+                PublicRating = ReadRawgPublicRating(item),
+                CompletionTimeHours = ReadRawgCompletionTimeHours(item)
             });
         }
 

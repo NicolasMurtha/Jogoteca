@@ -54,6 +54,8 @@ public sealed class DatabaseServiceTests : IDisposable
             firstId,
             9.5,
             "Excelente.",
+            "2026-01-10",
+            "2026-02-20",
             [favorites.Id]);
 
         Assert.Empty(await database.GetGamesAsync(defaultLists[0].Id));
@@ -61,6 +63,8 @@ public sealed class DatabaseServiceTests : IDisposable
         var savedGame = Assert.Single(favoriteGames);
         Assert.Equal(9.5, savedGame.UserRating);
         Assert.Equal("Excelente.", savedGame.Review);
+        Assert.Equal("10/01/2026", savedGame.StartedAtDisplay);
+        Assert.Equal("20/02/2026", savedGame.FinishedAtDisplay);
         Assert.Equal("2026-07-14", savedGame.ReleaseDate);
         Assert.Equal("14/07/2026", savedGame.ReleaseDateDisplay);
 
@@ -185,7 +189,7 @@ public sealed class DatabaseServiceTests : IDisposable
             },
             string.Empty);
         await database.AddGameToListAsync(gameId, lists[0].Id);
-        await database.SaveGameDetailsAsync(gameId, 9, "Bom demais.", [lists[0].Id]);
+        await database.SaveGameDetailsAsync(gameId, 9, "Bom demais.", string.Empty, string.Empty, [lists[0].Id]);
 
         var exportService = new DataExportService(database);
         var path = await exportService.ExportGamesCsvAsync(Path.Combine(_testDirectory, "exports"));
@@ -217,7 +221,7 @@ public sealed class DatabaseServiceTests : IDisposable
             string.Empty);
 
         var saved = Assert.Single(await database.GetGamesAsync(null));
-        Assert.Equal("1998", saved.ReleaseDateDisplay);
+        Assert.Equal("-/-/1998", saved.ReleaseDateDisplay);
     }
 
     [Fact]

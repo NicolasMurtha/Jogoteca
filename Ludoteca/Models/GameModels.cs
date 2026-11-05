@@ -43,6 +43,10 @@ public sealed class GameEntry : ObservableModel
     public string ReleaseDate { get; init; } = string.Empty;
     public string CoverUrl { get; init; } = string.Empty;
     public string LocalCoverPath { get; init; } = string.Empty;
+    public double? PublicRating { get; init; }
+    public double? CompletionTimeHours { get; init; }
+    public string StartedAt { get; init; } = string.Empty;
+    public string FinishedAt { get; init; } = string.Empty;
     public string AddedAt { get; init; } = string.Empty;
 
     public string CoverDisplay =>
@@ -55,7 +59,7 @@ public sealed class GameEntry : ObservableModel
         TryParseReleaseDate(ReleaseDate, out var releaseDate)
             ? releaseDate.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)
             : ReleaseYear.HasValue
-                ? ReleaseYear.Value.ToString(CultureInfo.InvariantCulture)
+                ? $"-/-/{ReleaseYear.Value.ToString(CultureInfo.InvariantCulture)}"
                 : "Data desconhecida";
     public DateTime? ReleaseSortDate =>
         TryParseReleaseDate(ReleaseDate, out var releaseDate)
@@ -65,6 +69,18 @@ public sealed class GameEntry : ObservableModel
                 : null;
     public string CategoryDisplay => string.IsNullOrWhiteSpace(Category) ? "Sem categoria" : Category;
     public string RatingDisplay => UserRating.HasValue ? UserRating.Value.ToString("0.0") : "-";
+    public string PublicRatingDisplay => PublicRating.HasValue
+        ? $"{PublicRating.Value.ToString("0.0", CultureInfo.InvariantCulture)}/10"
+        : "Sem nota pública";
+    public string CompletionTimeDisplay => CompletionTimeHours.HasValue
+        ? $"{CompletionTimeHours.Value.ToString("0.#", CultureInfo.InvariantCulture)} h"
+        : "Sem tempo estimado";
+    public string StartedAtDisplay => TryParseReleaseDate(StartedAt, out var startedAt)
+        ? startedAt.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)
+        : "Não definido";
+    public string FinishedAtDisplay => TryParseReleaseDate(FinishedAt, out var finishedAt)
+        ? finishedAt.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)
+        : "Não definido";
     public string ReviewDisplay =>
         string.IsNullOrWhiteSpace(Review)
             ? "Sem review escrita."
@@ -217,6 +233,8 @@ public sealed class GameSearchResult
     public int? ReleaseYear { get; init; }
     public string ReleaseDate { get; init; } = string.Empty;
     public string CoverUrl { get; init; } = string.Empty;
+    public double? PublicRating { get; init; }
+    public double? CompletionTimeHours { get; set; }
     public string CoverDisplay => CoverUrl;
     public string SourceDisplay => Source.ToLowerInvariant() switch
     {
@@ -225,11 +243,56 @@ public sealed class GameSearchResult
         _ => "MANUAL"
     };
     public string YearDisplay => ReleaseYear?.ToString() ?? "Ano desconhecido";
+    public string PublicRatingDisplay => PublicRating.HasValue
+        ? $"{PublicRating.Value.ToString("0.0", CultureInfo.InvariantCulture)}/10"
+        : "Sem nota pública";
+    public string CompletionTimeDisplay => CompletionTimeHours.HasValue
+        ? $"{CompletionTimeHours.Value.ToString("0.#", CultureInfo.InvariantCulture)} h"
+        : "Sem tempo estimado";
     public string CategoryDisplay => string.IsNullOrWhiteSpace(Category) ? "Sem categoria" : Category;
     public string DescriptionDisplay =>
         string.IsNullOrWhiteSpace(Description)
             ? "Sem descrição disponível."
             : Description;
+}
+
+public sealed class ReleaseNotification
+{
+    public int Id { get; init; }
+    public int GameId { get; init; }
+    public string GameName { get; init; } = string.Empty;
+    public string ReleaseDate { get; init; } = string.Empty;
+    public string CreatedAt { get; init; } = string.Empty;
+    public bool IsRead { get; init; }
+
+    public string ReleaseDateDisplay =>
+        DateTime.TryParseExact(
+            ReleaseDate,
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out var releaseDate)
+            ? releaseDate.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)
+            : ReleaseDate;
+
+    public string Message => $"{GameName} lançado dia {ReleaseDateDisplay}.";
+}
+
+public sealed class UpcomingReleaseWatch
+{
+    public int GameId { get; init; }
+    public string GameName { get; init; } = string.Empty;
+    public string ReleaseDate { get; init; } = string.Empty;
+
+    public string ReleaseDateDisplay =>
+        DateTime.TryParseExact(
+            ReleaseDate,
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out var releaseDate)
+            ? releaseDate.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)
+            : ReleaseDate;
 }
 
 public sealed class AppSettings

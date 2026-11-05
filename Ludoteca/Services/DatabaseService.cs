@@ -64,6 +64,10 @@ public sealed class DatabaseService
                 ReleaseDate TEXT NOT NULL DEFAULT '',
                 CoverUrl TEXT NOT NULL DEFAULT '',
                 LocalCoverPath TEXT NOT NULL DEFAULT '',
+                PublicRating REAL NULL,
+                CompletionTimeHours REAL NULL,
+                StartedAt TEXT NOT NULL DEFAULT '',
+                FinishedAt TEXT NOT NULL DEFAULT '',
                 UserRating REAL NULL,
                 Review TEXT NOT NULL DEFAULT '',
                 AddedAt TEXT NOT NULL,
@@ -85,13 +89,33 @@ public sealed class DatabaseService
                 Value TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS UpcomingReleaseWatches (
+                GameId INTEGER PRIMARY KEY,
+                ReleaseDate TEXT NOT NULL,
+                AddedAt TEXT NOT NULL,
+                FOREIGN KEY (GameId) REFERENCES Games(Id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS ReleaseNotifications (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                GameId INTEGER NOT NULL,
+                GameName TEXT NOT NULL,
+                ReleaseDate TEXT NOT NULL,
+                CreatedAt TEXT NOT NULL,
+                IsRead INTEGER NOT NULL DEFAULT 0,
+                UNIQUE(GameId, ReleaseDate),
+                FOREIGN KEY (GameId) REFERENCES Games(Id) ON DELETE CASCADE
+            );
+
             CREATE INDEX IF NOT EXISTS IX_GameLists_ListId ON GameLists(ListId);
             CREATE INDEX IF NOT EXISTS IX_Games_Name ON Games(Name);
+            CREATE INDEX IF NOT EXISTS IX_ReleaseNotifications_IsRead ON ReleaseNotifications(IsRead);
             """;
         await command.ExecuteNonQueryAsync();
         await EnsureListEmojiColumnAsync(connection);
         await EnsureListPositionColumnAsync(connection);
         await EnsureGameReleaseDateColumnAsync(connection);
+        await EnsureGameMetadataColumnsAsync(connection);
 
         var countCommand = connection.CreateCommand();
         countCommand.CommandText = "SELECT COUNT(*) FROM Lists;";
@@ -266,6 +290,7 @@ public sealed class DatabaseService
             $"""
              SELECT g.Id, g.Source, g.ExternalId, g.Name, g.Description, g.Category,
                     g.ReleaseYear, g.ReleaseDate, g.CoverUrl, g.LocalCoverPath,
+                    g.PublicRating, g.CompletionTimeHours, g.StartedAt, g.FinishedAt,
                     g.UserRating, g.Review, g.AddedAt
              FROM Games g
              {(whereParts.Count > 0 ? $"WHERE {string.Join(" AND ", whereParts)}" : string.Empty)}
@@ -293,11 +318,11 @@ public sealed class DatabaseService
             """
             INSERT INTO Games (
                 Source, ExternalId, Name, Description, Category, ReleaseYear, ReleaseDate,
-                CoverUrl, LocalCoverPath, AddedAt, UpdatedAt
+                CoverUrl, LocalCoverPath, PublicRating, CompletionTimeHours, AddedAt, UpdatedAt
             )
             VALUES (
                 $source, $externalId, $name, $description, $category, $releaseYear, $releaseDate,
-                $coverUrl, $localCoverPath, $now, $now
+                $coverUrl, $localCoverPath, $publicRating, $completionTimeHours, $now, $now
             )
             ON CONFLICT(Source, ExternalId) DO UPDATE SET
                 Name = excluded.Name,
@@ -305,17 +330,25 @@ public sealed class DatabaseService
                     WHEN excluded.Description <> '' THEN excluded.Description
                     ELSE Games.Description
                 END,
-                Category = excluded.Category,
-                ReleaseYear = excluded.ReleaseYear,
+                Category = CASE
+                    WHEN excluded.Category <> '' THEN excluded.Category
+                    ELSE Games.Category
+                END,
+                ReleaseYear = COALESCE(excluded.ReleaseYear, Games.ReleaseYear),
                 ReleaseDate = CASE
                     WHEN excluded.ReleaseDate <> '' THEN excluded.ReleaseDate
                     ELSE Games.ReleaseDate
                 END,
-                CoverUrl = excluded.CoverUrl,
+                CoverUrl = CASE
+                    WHEN excluded.CoverUrl <> '' THEN excluded.CoverUrl
+                    ELSE Games.CoverUrl
+                END,
                 LocalCoverPath = CASE
                     WHEN excluded.LocalCoverPath <> '' THEN excluded.LocalCoverPath
                     ELSE Games.LocalCoverPath
                 END,
+                PublicRating = COALESCE(excluded.PublicRating, Games.PublicRating),
+                CompletionTimeHours = COALESCE(excluded.CompletionTimeHours, Games.CompletionTimeHours),
                 UpdatedAt = excluded.UpdatedAt
             RETURNING Id;
             """;
@@ -328,6 +361,8 @@ public sealed class DatabaseService
         upsert.Parameters.AddWithValue("$releaseDate", game.ReleaseDate ?? string.Empty);
         upsert.Parameters.AddWithValue("$coverUrl", game.CoverUrl);
         upsert.Parameters.AddWithValue("$localCoverPath", localCoverPath);
+        upsert.Parameters.AddWithValue("$publicRating", (object?)game.PublicRating ?? DBNull.Value);
+        upsert.Parameters.AddWithValue("$completionTimeHours", (object?)game.CompletionTimeHours ?? DBNull.Value);
         upsert.Parameters.AddWithValue("$now", now);
         var gameId = Convert.ToInt32(await upsert.ExecuteScalarAsync());
 
@@ -439,6 +474,8 @@ public sealed class DatabaseService
         int gameId,
         double? rating,
         string review,
+        string startedAt,
+        string finishedAt,
         IEnumerable<int> selectedListIds)
     {
         await using var connection = await OpenConnectionAsync();
@@ -450,11 +487,17 @@ public sealed class DatabaseService
         update.CommandText =
             """
             UPDATE Games
-            SET UserRating = $rating, Review = $review, UpdatedAt = $updatedAt
+            SET UserRating = $rating,
+                Review = $review,
+                StartedAt = $startedAt,
+                FinishedAt = $finishedAt,
+                UpdatedAt = $updatedAt
             WHERE Id = $gameId;
             """;
         update.Parameters.AddWithValue("$rating", (object?)rating ?? DBNull.Value);
         update.Parameters.AddWithValue("$review", review.Trim());
+        update.Parameters.AddWithValue("$startedAt", startedAt);
+        update.Parameters.AddWithValue("$finishedAt", finishedAt);
         update.Parameters.AddWithValue("$updatedAt", now);
         update.Parameters.AddWithValue("$gameId", gameId);
         await update.ExecuteNonQueryAsync();
@@ -520,6 +563,131 @@ public sealed class DatabaseService
         };
     }
 
+    public async Task SyncReleaseNotificationsAsync()
+    {
+        await using var connection = await OpenConnectionAsync();
+        await using var transaction = connection.BeginTransaction();
+        var today = DateTime.Today.ToString("yyyy-MM-dd");
+        var now = DateTimeOffset.UtcNow.ToString("O");
+
+        var createNotifications = connection.CreateCommand();
+        createNotifications.Transaction = transaction;
+        createNotifications.CommandText =
+            """
+            INSERT OR IGNORE INTO ReleaseNotifications (
+                GameId, GameName, ReleaseDate, CreatedAt, IsRead
+            )
+            SELECT g.Id, g.Name, g.ReleaseDate, $now, 0
+            FROM Games g
+            INNER JOIN UpcomingReleaseWatches w ON w.GameId = g.Id
+            WHERE g.ReleaseDate <> ''
+              AND date(g.ReleaseDate) <= date($today);
+            """;
+        createNotifications.Parameters.AddWithValue("$today", today);
+        createNotifications.Parameters.AddWithValue("$now", now);
+        await createNotifications.ExecuteNonQueryAsync();
+
+        var removeCompletedWatches = connection.CreateCommand();
+        removeCompletedWatches.Transaction = transaction;
+        removeCompletedWatches.CommandText =
+            """
+            DELETE FROM UpcomingReleaseWatches
+            WHERE NOT EXISTS (
+                SELECT 1 FROM Games g WHERE g.Id = UpcomingReleaseWatches.GameId
+            )
+               OR EXISTS (
+                SELECT 1
+                FROM Games g
+                WHERE g.Id = UpcomingReleaseWatches.GameId
+                  AND (g.ReleaseDate = '' OR date(g.ReleaseDate) <= date($today))
+            );
+            """;
+        removeCompletedWatches.Parameters.AddWithValue("$today", today);
+        await removeCompletedWatches.ExecuteNonQueryAsync();
+
+        var upsertWatches = connection.CreateCommand();
+        upsertWatches.Transaction = transaction;
+        upsertWatches.CommandText =
+            """
+            INSERT INTO UpcomingReleaseWatches (GameId, ReleaseDate, AddedAt)
+            SELECT Id, ReleaseDate, $now
+            FROM Games
+            WHERE ReleaseDate <> ''
+              AND date(ReleaseDate) > date($today)
+            ON CONFLICT(GameId) DO UPDATE SET
+                ReleaseDate = excluded.ReleaseDate;
+            """;
+        upsertWatches.Parameters.AddWithValue("$today", today);
+        upsertWatches.Parameters.AddWithValue("$now", now);
+        await upsertWatches.ExecuteNonQueryAsync();
+
+        await transaction.CommitAsync();
+    }
+
+    public async Task<IReadOnlyList<ReleaseNotification>> GetReleaseNotificationsAsync()
+    {
+        var notifications = new List<ReleaseNotification>();
+        await using var connection = await OpenConnectionAsync();
+        var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT Id, GameId, GameName, ReleaseDate, CreatedAt, IsRead
+            FROM ReleaseNotifications
+            ORDER BY IsRead ASC, date(ReleaseDate) DESC, CreatedAt DESC;
+            """;
+
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            notifications.Add(new ReleaseNotification
+            {
+                Id = reader.GetInt32(0),
+                GameId = reader.GetInt32(1),
+                GameName = reader.GetString(2),
+                ReleaseDate = reader.GetString(3),
+                CreatedAt = reader.GetString(4),
+                IsRead = reader.GetInt32(5) == 1
+            });
+        }
+
+        return notifications;
+    }
+
+    public async Task<IReadOnlyList<UpcomingReleaseWatch>> GetUpcomingReleaseWatchesAsync()
+    {
+        var watches = new List<UpcomingReleaseWatch>();
+        await using var connection = await OpenConnectionAsync();
+        var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT g.Id, g.Name, w.ReleaseDate
+            FROM UpcomingReleaseWatches w
+            INNER JOIN Games g ON g.Id = w.GameId
+            ORDER BY date(w.ReleaseDate), g.Name COLLATE NOCASE;
+            """;
+
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            watches.Add(new UpcomingReleaseWatch
+            {
+                GameId = reader.GetInt32(0),
+                GameName = reader.GetString(1),
+                ReleaseDate = reader.GetString(2)
+            });
+        }
+
+        return watches;
+    }
+
+    public async Task MarkReleaseNotificationsReadAsync()
+    {
+        await using var connection = await OpenConnectionAsync();
+        var command = connection.CreateCommand();
+        command.CommandText = "UPDATE ReleaseNotifications SET IsRead = 1 WHERE IsRead = 0;";
+        await command.ExecuteNonQueryAsync();
+    }
+
     public async Task<Dictionary<string, string>> GetSettingsAsync()
     {
         var settings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -556,6 +724,41 @@ public sealed class DatabaseService
         }
 
         await transaction.CommitAsync();
+    }
+
+    public async Task ClearLibraryAsync()
+    {
+        await using var connection = await OpenConnectionAsync();
+        await using var transaction = connection.BeginTransaction();
+
+        var clearReleaseNotifications = connection.CreateCommand();
+        clearReleaseNotifications.Transaction = transaction;
+        clearReleaseNotifications.CommandText = "DELETE FROM ReleaseNotifications;";
+        await clearReleaseNotifications.ExecuteNonQueryAsync();
+
+        var clearReleaseWatches = connection.CreateCommand();
+        clearReleaseWatches.Transaction = transaction;
+        clearReleaseWatches.CommandText = "DELETE FROM UpcomingReleaseWatches;";
+        await clearReleaseWatches.ExecuteNonQueryAsync();
+
+        var clearMemberships = connection.CreateCommand();
+        clearMemberships.Transaction = transaction;
+        clearMemberships.CommandText = "DELETE FROM GameLists;";
+        await clearMemberships.ExecuteNonQueryAsync();
+
+        var clearGames = connection.CreateCommand();
+        clearGames.Transaction = transaction;
+        clearGames.CommandText = "DELETE FROM Games;";
+        await clearGames.ExecuteNonQueryAsync();
+
+        await transaction.CommitAsync();
+
+        if (Directory.Exists(CoversDirectory))
+        {
+            Directory.Delete(CoversDirectory, recursive: true);
+        }
+
+        Directory.CreateDirectory(CoversDirectory);
     }
 
     public async Task ResetDatabaseAsync()
@@ -754,6 +957,40 @@ public sealed class DatabaseService
         await alter.ExecuteNonQueryAsync();
     }
 
+    private static async Task EnsureGameMetadataColumnsAsync(SqliteConnection connection)
+    {
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var check = connection.CreateCommand();
+        check.CommandText = "PRAGMA table_info(Games);";
+        await using (var reader = await check.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                columns.Add(reader.GetString(1));
+            }
+        }
+
+        var definitions = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["PublicRating"] = "REAL NULL",
+            ["CompletionTimeHours"] = "REAL NULL",
+            ["StartedAt"] = "TEXT NOT NULL DEFAULT ''",
+            ["FinishedAt"] = "TEXT NOT NULL DEFAULT ''"
+        };
+
+        foreach (var (column, definition) in definitions)
+        {
+            if (columns.Contains(column))
+            {
+                continue;
+            }
+
+            var alter = connection.CreateCommand();
+            alter.CommandText = $"ALTER TABLE Games ADD COLUMN {column} {definition};";
+            await alter.ExecuteNonQueryAsync();
+        }
+    }
+
     private static string NormalizeEmoji(string emoji)
     {
         return ListEmojiCatalog.Normalize(emoji);
@@ -773,9 +1010,13 @@ public sealed class DatabaseService
             ReleaseDate = reader.GetString(7),
             CoverUrl = reader.GetString(8),
             LocalCoverPath = reader.GetString(9),
-            UserRating = reader.IsDBNull(10) ? null : reader.GetDouble(10),
-            Review = reader.GetString(11),
-            AddedAt = reader.GetString(12)
+            PublicRating = reader.IsDBNull(10) ? null : reader.GetDouble(10),
+            CompletionTimeHours = reader.IsDBNull(11) ? null : reader.GetDouble(11),
+            StartedAt = reader.GetString(12),
+            FinishedAt = reader.GetString(13),
+            UserRating = reader.IsDBNull(14) ? null : reader.GetDouble(14),
+            Review = reader.GetString(15),
+            AddedAt = reader.GetString(16)
         };
     }
 }

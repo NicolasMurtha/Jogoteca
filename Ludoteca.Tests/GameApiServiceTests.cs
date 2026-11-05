@@ -454,6 +454,85 @@ public sealed class GameApiServiceTests
         }
     }
 
+    [Fact]
+    public async Task RequestsNewIgdbTokenWhenCredentialsChange()
+    {
+        var handler = new StubHttpMessageHandler(request =>
+            request.RequestUri?.Host switch
+            {
+                "id.twitch.tv" => Json("""{"access_token":"token","expires_in":3600}"""),
+                "api.igdb.com" => Json("""[{"id":1,"name":"Game"}]"""),
+                _ => new HttpResponseMessage(HttpStatusCode.NotFound)
+            });
+        using var service = new GameApiService(handler);
+        var igdbOnly = new AppSettings { IgdbClientId = "client", IgdbClientSecret = "secret" };
+
+        await service.SearchAsync("Game", igdbOnly, CancellationToken.None);
+        await service.SearchAsync("Game", igdbOnly, CancellationToken.None);
+        Assert.Equal(1, handler.TwitchCalls);
+
+        igdbOnly.IgdbClientId = "other-client";
+        await service.SearchAsync("Game", igdbOnly, CancellationToken.None);
+        Assert.Equal(2, handler.TwitchCalls);
+    }
+
+    [Fact]
+    public async Task RequestsNewIgdbTokenAfterUnauthorizedResponse()
+    {
+        var igdbResponses = 0;
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            if (request.RequestUri?.Host == "id.twitch.tv")
+            {
+                return Json("""{"access_token":"token","expires_in":3600}""");
+            }
+
+            return ++igdbResponses == 1
+                ? new HttpResponseMessage(HttpStatusCode.Unauthorized)
+                : Json("""[{"id":1,"name":"Game"}]""");
+        });
+        using var service = new GameApiService(handler);
+        var igdbOnly = new AppSettings { IgdbClientId = "client", IgdbClientSecret = "secret" };
+
+        await Assert.ThrowsAsync<HttpRequestException>(() =>
+            service.SearchAsync("Game", igdbOnly, CancellationToken.None));
+        var response = await service.SearchAsync("Game", igdbOnly, CancellationToken.None);
+
+        Assert.Single(response.Results);
+        Assert.Equal(2, handler.TwitchCalls);
+    }
+
+    [Fact]
+    public async Task FailedCoverDownloadLeavesNoFileBehind()
+    {
+        var coversDirectory = Path.Combine(Path.GetTempPath(), $"jogoteca-covers-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(coversDirectory);
+        try
+        {
+            var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StreamContent(new FailingStream())
+            });
+            using var service = new GameApiService(handler);
+            var game = new GameSearchResult
+            {
+                Source = "rawg",
+                ExternalId = "1",
+                Name = "Game",
+                CoverUrl = "https://example.com/cover.jpg"
+            };
+
+            await Assert.ThrowsAsync<IOException>(() =>
+                service.DownloadCoverAsync(game, coversDirectory, CancellationToken.None));
+
+            Assert.Empty(Directory.GetFiles(coversDirectory));
+        }
+        finally
+        {
+            Directory.Delete(coversDirectory, recursive: true);
+        }
+    }
+
     private static AppSettings CompleteSettings()
     {
         return new AppSettings
@@ -470,6 +549,41 @@ public sealed class GameApiServiceTests
         {
             Content = new StringContent(content, Encoding.UTF8, "application/json")
         };
+    }
+
+    private sealed class FailingStream : Stream
+    {
+        private bool _sentFirstChunk;
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            if (_sentFirstChunk)
+            {
+                throw new IOException("Conexão interrompida.");
+            }
+
+            _sentFirstChunk = true;
+            buffer[offset] = 0xFF;
+            return 1;
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     private sealed class StubHttpMessageHandler(

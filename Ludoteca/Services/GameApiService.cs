@@ -36,6 +36,7 @@ public sealed class GameApiService : IDisposable
     }
 
     private string _igdbAccessToken = string.Empty;
+    private string _igdbTokenCredentials = string.Empty;
     private DateTimeOffset _igdbTokenExpiresAt = DateTimeOffset.MinValue;
 
     public async Task<GameSearchResponse> SearchAsync(
@@ -413,9 +414,25 @@ public sealed class GameApiService : IDisposable
             cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
-        await using var target = File.Create(destination);
-        await source.CopyToAsync(target, cancellationToken);
+        var temporaryPath = $"{destination}.{Guid.NewGuid():N}.tmp";
+        try
+        {
+            await using (var source = await response.Content.ReadAsStreamAsync(cancellationToken))
+            await using (var target = File.Create(temporaryPath))
+            {
+                await source.CopyToAsync(target, cancellationToken);
+            }
+
+            File.Move(temporaryPath, destination, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
+        }
+
         return destination;
     }
 
@@ -657,7 +674,9 @@ public sealed class GameApiService : IDisposable
         AppSettings settings,
         CancellationToken cancellationToken)
     {
+        var credentials = $"{settings.IgdbClientId}\n{settings.IgdbClientSecret}";
         if (!string.IsNullOrWhiteSpace(_igdbAccessToken) &&
+            _igdbTokenCredentials == credentials &&
             DateTimeOffset.UtcNow < _igdbTokenExpiresAt)
         {
             return _igdbAccessToken;
@@ -676,6 +695,7 @@ public sealed class GameApiService : IDisposable
         _igdbAccessToken = document.RootElement.GetProperty("access_token").GetString() ?? string.Empty;
         var expiresIn = document.RootElement.GetProperty("expires_in").GetInt32();
         _igdbTokenExpiresAt = DateTimeOffset.UtcNow.AddSeconds(Math.Max(60, expiresIn - 120));
+        _igdbTokenCredentials = credentials;
         return _igdbAccessToken;
     }
 
@@ -986,7 +1006,13 @@ public sealed class GameApiService : IDisposable
             }
 
             _nextIgdbRequestAt = DateTimeOffset.UtcNow.AddMilliseconds(275);
-            return await _httpClient.SendAsync(request, cancellationToken);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                _igdbAccessToken = string.Empty;
+            }
+
+            return response;
         }
         finally
         {

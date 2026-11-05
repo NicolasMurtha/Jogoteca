@@ -175,7 +175,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _isDragging;
     private bool _isListDragging;
     private bool _isInitializingDetail;
-    private bool _isCatalogLoading;
+    private int _catalogLoadVersion;
     private LibrarySortMode _librarySortMode = LibrarySortMode.Default;
     private GameLibraryFilter _activeLibraryFilter = GameLibraryFilter.None;
     private string _selectedListColor = ListColors[0];
@@ -1042,12 +1042,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             }
         }
 
-        if (_isCatalogLoading || !reset)
+        if (!reset)
         {
             return;
         }
 
-        _isCatalogLoading = true;
+        var loadVersion = ++_catalogLoadVersion;
         DiscoveryLoadingState.Visibility = Visibility.Visible;
         var cancellationToken = _catalogCancellation?.Token ?? CancellationToken.None;
 
@@ -1063,6 +1063,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 1,
                 _settings,
                 cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             foreach (var section in CatalogSections)
             {
                 section.ApplyPage(
@@ -1097,13 +1098,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         finally
         {
-            foreach (var section in CatalogSections)
+            if (loadVersion == _catalogLoadVersion)
             {
-                section.FinishLoading();
-            }
+                foreach (var section in CatalogSections)
+                {
+                    section.FinishLoading();
+                }
 
-            _isCatalogLoading = false;
-            DiscoveryLoadingState.Visibility = Visibility.Collapsed;
+                DiscoveryLoadingState.Visibility = Visibility.Collapsed;
+            }
         }
     }
 
@@ -1949,7 +1952,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             await _settingsService.SaveAsync(_settings);
 
             SearchResults.Clear();
-            CatalogSections.Clear();
+            foreach (var section in CatalogSections)
+            {
+                section.Clear();
+            }
             SetSelectedListId(null);
             SelectedListTitle = "Biblioteca";
             SelectedListSubtitle = "Todos os jogos que você adicionou";

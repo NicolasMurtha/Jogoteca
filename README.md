@@ -9,7 +9,7 @@
 Descubra lançamentos, monte suas listas e acompanhe tudo o que você joga,
 quer jogar e já zerou, num app bonito, rápido e 100% no seu computador.
 
-[**⬇️ Baixar para Windows (grátis)**](https://github.com/NicolasMurtha/Jogoteca/releases/latest)
+[**⬇️ Baixar para Windows (grátis)**](https://github.com/NicolasMurtha/Jogoteca/releases/latest/download/JOGOTECA-App-win-Setup.exe)
 
 </div>
 
@@ -45,9 +45,15 @@ vontade de abrir.
 
 ## Como começar
 
-1. [Baixe a versão mais recente](https://github.com/NicolasMurtha/Jogoteca/releases/latest).
-2. Abra o `JOGOTECA.exe`. Não precisa instalar nada.
+1. [Baixe o instalador](https://github.com/NicolasMurtha/Jogoteca/releases/latest/download/JOGOTECA-App-win-Setup.exe).
+2. Execute o `JOGOTECA-App-win-Setup.exe`. A JOGOTECA é instalada em segundos,
+   sem pedir permissão de administrador, e ganha atalhos na área de trabalho e
+   no menu Iniciar.
 3. Pronto! Comece adicionando jogos manualmente, só o nome já basta.
+
+A JOGOTECA se atualiza sozinha: quando sair uma versão nova, ela avisa e
+instala com um clique. Prefere não instalar? Use o
+[arquivo portátil](https://github.com/NicolasMurtha/Jogoteca/releases/latest/download/JOGOTECA-App-win-Portable.zip).
 
 > Se o Windows mostrar o aviso *"O Windows protegeu o computador"*, clique em
 > **Mais informações** e depois em **Executar assim mesmo**.

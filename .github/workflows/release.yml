@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Versão a publicar (ex.: v2.0.0)"
+        description: "Versão a publicar (ex.: v2.1.0)"
         required: true
 
 env:
@@ -29,26 +29,53 @@ jobs:
       - name: Test
         run: dotnet test Ludoteca.sln -c Release
 
-      - name: Publish JOGOTECA.exe
+      - name: Read version
+        shell: pwsh
+        run: |
+          $appVersion = "${{ env.RELEASE_TAG }}".TrimStart("v")
+          "APP_VERSION=$appVersion" >> $env:GITHUB_ENV
+
+      - name: Publish
         run: >-
           dotnet publish Ludoteca/Ludoteca.csproj
           -c Release -r win-x64 --self-contained true
-          -p:PublishSingleFile=true
-          -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:PublishReadyToRun=true
+          -p:Version=${{ env.APP_VERSION }}
           -p:DebugType=None
-          -o dist/JOGOTECA-win-x64
+          -o publish
 
-      - name: Zip
-        shell: pwsh
-        run: Compress-Archive -Path dist/JOGOTECA-win-x64/JOGOTECA.exe -DestinationPath "JOGOTECA-${{ env.RELEASE_TAG }}-win-x64.zip"
+      - name: Install vpk
+        run: dotnet tool install -g vpk --version 1.2.161
 
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          target_commitish: ${{ github.sha }}
-          name: JOGOTECA ${{ env.RELEASE_TAG }}
-          generate_release_notes: true
-          files: |
-            dist/JOGOTECA-win-x64/JOGOTECA.exe
-            JOGOTECA-${{ env.RELEASE_TAG }}-win-x64.zip
+      - name: Download previous release
+        continue-on-error: true
+        run: >-
+          vpk download github
+          --repoUrl https://github.com/${{ github.repository }}
+          --token ${{ secrets.GITHUB_TOKEN }}
+          -o Releases
+
+      # The package id must differ from the data folder (%LOCALAPPDATA%\JOGOTECA):
+      # uninstalling removes %LOCALAPPDATA%\<packId>.
+      - name: Pack
+        run: >-
+          vpk pack
+          --packId JOGOTECA-App
+          --packVersion ${{ env.APP_VERSION }}
+          --packDir publish
+          -r win-x64
+          --mainExe JOGOTECA.exe
+          --packTitle JOGOTECA
+          --packAuthors "Nicolas Murtha"
+          --icon Ludoteca/Assets/Ludoteca.ico
+          -o Releases
+
+      - name: Upload release
+        run: >-
+          vpk upload github
+          --repoUrl https://github.com/${{ github.repository }}
+          --token ${{ secrets.GITHUB_TOKEN }}
+          --publish
+          --releaseName "JOGOTECA v${{ env.APP_VERSION }}"
+          --tag v${{ env.APP_VERSION }}
+          --targetCommitish ${{ github.sha }}
+          -o Releases

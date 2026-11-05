@@ -161,6 +161,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly DataExportService _dataExportService;
     private readonly DispatcherTimer _toastTimer;
     private readonly SettingsService _settingsService;
+    private readonly UpdateService _updateService = new();
 
     private CancellationTokenSource? _searchCancellation;
     private CancellationTokenSource? _catalogCancellation;
@@ -346,6 +347,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             ConfigureProviderUi();
             ShowDiscoverView();
             await LoadDiscoveryAsync(reset: true);
+            await CheckForUpdatesAsync();
         }
         catch (Exception ex)
         {
@@ -354,6 +356,45 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 "Erro ao iniciar",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
+        }
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        Velopack.UpdateInfo? update;
+        try
+        {
+            update = await _updateService.CheckForUpdateAsync();
+        }
+        catch
+        {
+            // Offline or GitHub unavailable: try again on the next start.
+            return;
+        }
+
+        if (update is null)
+        {
+            return;
+        }
+
+        var version = update.TargetFullRelease.Version.ToString();
+        var confirmed = await ShowConfirmationAsync(
+            "Nova versão disponível",
+            $"A JOGOTECA {version} está disponível.\n\nAtualizar agora? O app será reiniciado e seus jogos e listas continuam salvos.",
+            "Atualizar");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            ShowToast($"Baixando a JOGOTECA {version}...");
+            await _updateService.DownloadAndRestartAsync(update);
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Não foi possível atualizar agora: {ex.Message}");
         }
     }
 

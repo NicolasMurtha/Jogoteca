@@ -533,6 +533,65 @@ public sealed class GameApiServiceTests
         }
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.OK, ProviderCheckResult.Valid)]
+    [InlineData(HttpStatusCode.Unauthorized, ProviderCheckResult.Invalid)]
+    [InlineData(HttpStatusCode.InternalServerError, ProviderCheckResult.Unreachable)]
+    public async Task ChecksRawgKey(HttpStatusCode status, ProviderCheckResult expected)
+    {
+        var handler = new StubHttpMessageHandler(_ => new HttpResponseMessage(status)
+        {
+            Content = new StringContent("{}", Encoding.UTF8, "application/json")
+        });
+        using var service = new GameApiService(handler);
+
+        var result = await service.CheckRawgKeyAsync("key", CancellationToken.None);
+
+        Assert.Equal(expected, result);
+        Assert.Contains("key=key", handler.LastRawgUri?.Query);
+    }
+
+    [Fact]
+    public async Task RawgKeyCheckReportsUnreachableWhenOffline()
+    {
+        var handler = new StubHttpMessageHandler(_ => throw new HttpRequestException("offline"));
+        using var service = new GameApiService(handler);
+
+        var result = await service.CheckRawgKeyAsync("key", CancellationToken.None);
+
+        Assert.Equal(ProviderCheckResult.Unreachable, result);
+    }
+
+    [Fact]
+    public async Task IgdbCheckReportsInvalidWhenTwitchRejectsSecret()
+    {
+        var handler = new StubHttpMessageHandler(request =>
+            request.RequestUri?.Host == "id.twitch.tv"
+                ? new HttpResponseMessage(HttpStatusCode.Forbidden)
+                : Json("[]"));
+        using var service = new GameApiService(handler);
+
+        var result = await service.CheckIgdbCredentialsAsync("client", "wrong", CancellationToken.None);
+
+        Assert.Equal(ProviderCheckResult.Invalid, result);
+        Assert.Equal(0, handler.IgdbCalls);
+    }
+
+    [Fact]
+    public async Task IgdbCheckReportsValidWhenTokenAndQueryWork()
+    {
+        var handler = new StubHttpMessageHandler(request =>
+            request.RequestUri?.Host == "id.twitch.tv"
+                ? Json("""{"access_token":"token","expires_in":3600}""")
+                : Json("""[{"id":1}]"""));
+        using var service = new GameApiService(handler);
+
+        var result = await service.CheckIgdbCredentialsAsync("client", "secret", CancellationToken.None);
+
+        Assert.Equal(ProviderCheckResult.Valid, result);
+        Assert.Equal(1, handler.IgdbCalls);
+    }
+
     private static AppSettings CompleteSettings()
     {
         return new AppSettings

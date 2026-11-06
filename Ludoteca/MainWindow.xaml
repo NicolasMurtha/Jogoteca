@@ -1862,13 +1862,18 @@
                                             BorderThickness="0"
                                             Foreground="{DynamicResource LinkAccent}"
                                             Cursor="Hand"
-                                            Click="OpenIgdbDocs_Click"
-                                            Content="Como obter credenciais ↗" />
+                                            Click="OpenIgdbGuide_Click"
+                                            Content="Passo a passo" />
                                 </Grid>
                                 <TextBlock Text="Client ID" Margin="0,14,0,6" FontSize="11" FontWeight="SemiBold" />
                                 <PasswordBox x:Name="IgdbClientIdBox" Style="{StaticResource PasswordInput}" />
                                 <TextBlock Text="Client Secret" Margin="0,12,0,6" FontSize="11" FontWeight="SemiBold" />
                                 <PasswordBox x:Name="IgdbClientSecretBox" Style="{StaticResource PasswordInput}" />
+                                <TextBlock x:Name="IgdbStatusText"
+                                           Margin="0,10,0,0"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap"
+                                           Visibility="Collapsed" />
                             </StackPanel>
                         </Border>
 
@@ -1881,11 +1886,16 @@
                                             BorderThickness="0"
                                             Foreground="{DynamicResource StatRatingForeground}"
                                             Cursor="Hand"
-                                            Click="OpenRawgDocs_Click"
-                                            Content="Obter uma chave ↗" />
+                                            Click="OpenRawgGuide_Click"
+                                            Content="Passo a passo" />
                                 </Grid>
                                 <TextBlock Text="API Key" Margin="0,14,0,6" FontSize="11" FontWeight="SemiBold" />
                                 <PasswordBox x:Name="RawgApiKeyBox" Style="{StaticResource PasswordInput}" />
+                                <TextBlock x:Name="RawgStatusText"
+                                           Margin="0,10,0,0"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap"
+                                           Visibility="Collapsed" />
                             </StackPanel>
                         </Border>
 
@@ -1950,12 +1960,251 @@
                                     Margin="0,0,9,0"
                                     Click="CloseSettings_Click"
                                     Content="Cancelar" />
-                            <Button Style="{StaticResource PrimaryButton}"
+                            <Button x:Name="SaveSettingsButton"
+                                    Style="{StaticResource PrimaryButton}"
                                     Click="SaveSettings_Click"
                                     Content="Salvar configurações" />
                         </StackPanel>
                     </Grid>
                 </Grid>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="ApiGuideOverlay"
+              Grid.RowSpan="2"
+              Background="{DynamicResource OverlayScrim}"
+              Visibility="Collapsed"
+              Panel.ZIndex="50">
+            <Border Width="640"
+                    Margin="0,40"
+                    Padding="28"
+                    Background="{DynamicResource AppBackground}"
+                    CornerRadius="22"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid>
+                        <StackPanel Margin="0,0,46,0">
+                            <TextBlock Text="Como conectar o catálogo online"
+                                       FontSize="23"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="As duas fontes são gratuitas. Uma já basta: comece pelo RAWG, que leva uns 2 minutos."
+                                       Margin="0,5,0,0"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Button Style="{StaticResource IconButton}"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Top"
+                                Click="CloseApiGuide_Click">
+                            <TextBlock FontFamily="Segoe Fluent Icons" Text="&#xE8BB;" FontSize="14" />
+                        </Button>
+                    </Grid>
+
+                    <ScrollViewer x:Name="ApiGuideScrollViewer"
+                                  Grid.Row="1"
+                                  Margin="0,18,0,0"
+                                  MaxHeight="430"
+                                  VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <Border x:Name="RawgGuideSection"
+                                    Padding="18"
+                                    Background="{DynamicResource StatRatingBackground}"
+                                    CornerRadius="15">
+                                <StackPanel>
+                                    <TextBlock Text="RAWG · recomendado, mais fácil"
+                                               FontSize="16"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Text="Libera a tela Descobrir, a busca, capas, nota do público e tempo médio de jogo."
+                                               Margin="0,4,0,4"
+                                               Foreground="{DynamicResource TextSecondary}"
+                                               TextWrapping="Wrap" />
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="24" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="1." FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="Clique em Abrir o RAWG abaixo e depois em Get API Key." TextWrapping="Wrap" LineHeight="20" />
+                                    </Grid>
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="24" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="2." FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="Crie uma conta gratuita ou entre com a sua." TextWrapping="Wrap" LineHeight="20" />
+                                    </Grid>
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="24" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="3." FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="Preencha o formulário curto. Em nome do app, coloque JOGOTECA; em site, pode usar github.com/NicolasMurtha/Jogoteca." TextWrapping="Wrap" LineHeight="20" />
+                                    </Grid>
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="24" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="4." FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="Copie a chave que aparece e cole no campo API Key do RAWG, em Configurações." TextWrapping="Wrap" LineHeight="20" />
+                                    </Grid>
+                                    <Button Style="{StaticResource SecondaryButton}"
+                                            Margin="0,14,0,0"
+                                            HorizontalAlignment="Left"
+                                            Click="OpenRawgDocs_Click"
+                                            Content="Abrir o RAWG ↗" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border x:Name="IgdbGuideSection"
+                                    Margin="0,12,0,0"
+                                    Padding="18"
+                                    Background="{DynamicResource StatLibraryBackground}"
+                                    CornerRadius="15">
+                                <StackPanel>
+                                    <TextBlock Text="IGDB · opcional, dados mais completos"
+                                               FontSize="16"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Text="Usa uma conta da Twitch. Com as duas fontes configuradas, a JOGOTECA usa o IGDB primeiro e o RAWG como reserva."
+                                               Margin="0,4,0,4"
+                                               Foreground="{DynamicResource TextSecondary}"
+                                               TextWrapping="Wrap" />
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="24" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="1." FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="Entre na sua conta da Twitch (ou crie uma) e ative a verificação em duas etapas, em Configurações → Segurança e privacidade." TextWrapping="Wrap" LineHeight="20" />
+                                    </Grid>
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="24" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="2." FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="Clique em Abrir o console da Twitch abaixo e escolha Registrar seu aplicativo (Register Your Application)." TextWrapping="Wrap" LineHeight="20" />
+                                    </Grid>
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="24" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="3." FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="Nome: algo único, como JOGOTECA-seunome. URL de redirecionamento OAuth: http://localhost. Categoria: Application Integration. Tipo de cliente: Confidencial (Confidential)." TextWrapping="Wrap" LineHeight="20" />
+                                    </Grid>
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="24" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="4." FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="Clique em Criar e depois em Gerenciar (Manage) no aplicativo criado." TextWrapping="Wrap" LineHeight="20" />
+                                    </Grid>
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="24" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="5." FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="Copie o ID do cliente (Client ID). Depois clique em Novo segredo (New Secret) e copie o segredo: ele só aparece uma vez." TextWrapping="Wrap" LineHeight="20" />
+                                    </Grid>
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="24" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="6." FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="Cole os dois nos campos do IGDB, em Configurações." TextWrapping="Wrap" LineHeight="20" />
+                                    </Grid>
+                                    <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                                        <Button Style="{StaticResource SecondaryButton}"
+                                                Margin="0,0,9,0"
+                                                Click="OpenTwitchConsole_Click"
+                                                Content="Abrir o console da Twitch ↗" />
+                                        <Button Background="Transparent"
+                                                BorderThickness="0"
+                                                Foreground="{DynamicResource LinkAccent}"
+                                                Cursor="Hand"
+                                                VerticalAlignment="Center"
+                                                Click="OpenIgdbDocs_Click"
+                                                Content="Instruções oficiais (inglês) ↗" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <StackPanel Grid.Row="2"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Right"
+                                Margin="0,20,0,0">
+                        <Button Style="{StaticResource SecondaryButton}"
+                                Margin="0,0,9,0"
+                                Click="CloseApiGuide_Click"
+                                Content="Fechar" />
+                        <Button Style="{StaticResource PrimaryButton}"
+                                Click="ApiGuideOpenSettings_Click"
+                                Content="Já tenho a chave" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="ApiWelcomeOverlay"
+              Grid.RowSpan="2"
+              Background="{DynamicResource OverlayScrim}"
+              Visibility="Collapsed"
+              Panel.ZIndex="45">
+            <Border Width="520"
+                    Padding="28"
+                    Background="{DynamicResource AppBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="22"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="🎮"
+                               FontFamily="Segoe UI Emoji"
+                               FontSize="34" />
+                    <TextBlock Text="Bem-vindo à JOGOTECA!"
+                               Margin="0,10,0,0"
+                               FontSize="23"
+                               FontWeight="SemiBold" />
+                    <TextBlock Margin="0,10,0,0"
+                               Foreground="{DynamicResource TextSecondary}"
+                               LineHeight="21"
+                               TextWrapping="Wrap"
+                               Text="Sua biblioteca, suas listas e o cadastro manual já funcionam, sem internet e sem conta." />
+                    <TextBlock Margin="0,10,0,0"
+                               Foreground="{DynamicResource TextSecondary}"
+                               LineHeight="21"
+                               TextWrapping="Wrap"
+                               Text="Para descobrir jogos, buscar pelo nome e trazer capas, nota do público e tempo de jogo automaticamente, conecte uma fonte gratuita de dados (RAWG ou IGDB). Leva uns 2 minutos, e a JOGOTECA mostra o passo a passo." />
+                    <CheckBox x:Name="HideApiWelcomeCheckBox"
+                              Margin="0,18,0,0"
+                              Content="Não mostrar esta mensagem novamente" />
+                    <StackPanel Orientation="Horizontal"
+                                HorizontalAlignment="Right"
+                                Margin="0,22,0,0">
+                        <Button Style="{StaticResource SecondaryButton}"
+                                Margin="0,0,9,0"
+                                Click="CloseApiWelcome_Click"
+                                Content="Fechar" />
+                        <Button Style="{StaticResource PrimaryButton}"
+                                Click="ConfigureFromApiWelcome_Click"
+                                Content="Configurar" />
+                    </StackPanel>
+                </StackPanel>
             </Border>
         </Grid>
 

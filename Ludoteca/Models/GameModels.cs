@@ -301,6 +301,7 @@ public sealed class AppSettings
     public string IgdbClientSecret { get; set; } = string.Empty;
     public string RawgApiKey { get; set; } = string.Empty;
     public string Theme { get; set; } = "light";
+    public bool HideApiWelcome { get; set; }
 
     public bool HasIgdb =>
         !string.IsNullOrWhiteSpace(IgdbClientId) &&
@@ -308,6 +309,13 @@ public sealed class AppSettings
 
     public bool HasRawg => !string.IsNullOrWhiteSpace(RawgApiKey);
     public bool HasAnyProvider => HasIgdb || HasRawg;
+}
+
+public enum ProviderCheckResult
+{
+    Valid,
+    Invalid,
+    Unreachable
 }
 
 public sealed class LibraryStats

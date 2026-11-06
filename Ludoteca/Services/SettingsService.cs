@@ -16,7 +16,8 @@ public sealed class SettingsService(DatabaseService database)
             IgdbClientId = Unprotect(GetValue(stored, "igdb_client_id")),
             IgdbClientSecret = Unprotect(GetValue(stored, "igdb_client_secret")),
             RawgApiKey = Unprotect(GetValue(stored, "rawg_api_key")),
-            Theme = NormalizeTheme(GetValue(stored, "app_theme"))
+            Theme = NormalizeTheme(GetValue(stored, "app_theme")),
+            HideApiWelcome = GetValue(stored, "hide_api_welcome") == "1"
         };
     }
 
@@ -27,7 +28,8 @@ public sealed class SettingsService(DatabaseService database)
             ["igdb_client_id"] = Protect(settings.IgdbClientId),
             ["igdb_client_secret"] = Protect(settings.IgdbClientSecret),
             ["rawg_api_key"] = Protect(settings.RawgApiKey),
-            ["app_theme"] = NormalizeTheme(settings.Theme)
+            ["app_theme"] = NormalizeTheme(settings.Theme),
+            ["hide_api_welcome"] = settings.HideApiWelcome ? "1" : "0"
         };
 
         return database.SaveSettingsAsync(values);

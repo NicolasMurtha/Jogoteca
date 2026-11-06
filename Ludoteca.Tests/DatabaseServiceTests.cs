@@ -241,6 +241,20 @@ public sealed class DatabaseServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task PersistsHideApiWelcomePreference()
+    {
+        var database = new DatabaseService(_testDirectory);
+        await database.InitializeAsync();
+        var settingsService = new SettingsService(database);
+
+        Assert.False((await settingsService.LoadAsync()).HideApiWelcome);
+
+        await settingsService.SaveAsync(new AppSettings { HideApiWelcome = true });
+
+        Assert.True((await settingsService.LoadAsync()).HideApiWelcome);
+    }
+
+    [Fact]
     public async Task MovesGameBetweenListsAndCanRemoveOnlyTheMembership()
     {
         var database = new DatabaseService(_testDirectory);

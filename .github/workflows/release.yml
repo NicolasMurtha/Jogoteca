@@ -21,6 +21,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -34,6 +36,23 @@ jobs:
         run: |
           $appVersion = "${{ env.RELEASE_TAG }}".TrimStart("v")
           "APP_VERSION=$appVersion" >> $env:GITHUB_ENV
+
+      - name: Release notes
+        shell: bash
+        run: |
+          tag="v${APP_VERSION}"
+          previous=$(git describe --tags --abbrev=0 --exclude "$tag" HEAD 2>/dev/null || true)
+          range=${previous:+$previous..}HEAD
+          {
+            echo "## O que mudou"
+            echo
+            git log "$range" --no-merges --format='### %s%n%n%b' -- . ':!.github'
+            if [ -n "$previous" ]; then
+              echo
+              echo "**Todas as mudanças:** https://github.com/${{ github.repository }}/compare/$previous...$tag"
+            fi
+          } > release-notes.md
+          cat release-notes.md
 
       - name: Publish
         run: >-
@@ -67,6 +86,7 @@ jobs:
           --packTitle JOGOTECA
           --packAuthors "Nicolas Murtha"
           --icon Ludoteca/Assets/Ludoteca.ico
+          --releaseNotes release-notes.md
           -o Releases
 
       - name: Upload release
@@ -79,3 +99,8 @@ jobs:
           --tag v${{ env.APP_VERSION }}
           --targetCommitish ${{ github.sha }}
           -o Releases
+
+      - name: Release page notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "v${{ env.APP_VERSION }}" --notes-file release-notes.md

@@ -159,7 +159,7 @@
                             Padding="7,2"
                             Background="{DynamicResource VersionBadgeBackground}"
                             CornerRadius="8">
-                        <TextBlock Text="2.0"
+                        <TextBlock Text="{Binding AppVersionDisplay}"
                                    FontSize="10"
                                    FontWeight="Bold"
                                    Foreground="{DynamicResource VersionBadgeForeground}" />

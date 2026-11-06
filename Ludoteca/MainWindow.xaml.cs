@@ -254,6 +254,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public bool IsViewingList => _selectedListId.HasValue;
     public bool IsViewingLibrary => !_selectedListId.HasValue;
+    public string AppVersionDisplay { get; } =
+        System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version is { } version
+            ? $"{version.Major}.{version.Minor}.{version.Build}"
+            : string.Empty;
     public string ThemeToggleText => IsDarkTheme ? "Usar tema claro" : "Usar tema escuro";
     public string ThemeToggleIcon => IsDarkTheme ? "\uE706" : "\uE708";
     public string NameSortHeaderText => _librarySortMode switch

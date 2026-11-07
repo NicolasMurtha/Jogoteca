@@ -108,8 +108,8 @@ public partial class MainWindow
             if (button.Tag is string color &&
                 color.Equals(_selectedListColor, StringComparison.OrdinalIgnoreCase))
             {
-                button.BorderBrush = BrushFromHex("#E85D5D");
-                button.BorderThickness = new Thickness(3);
+                button.BorderBrush = ResourceBrush("SelectedSwatchBorder");
+                button.BorderThickness = new Thickness(2);
             }
             else
             {

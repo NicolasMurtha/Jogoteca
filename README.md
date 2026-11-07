@@ -13,7 +13,7 @@ quer jogar e já zerou, num app bonito, rápido e 100% no seu computador.
 
 </div>
 
-![Tela Descobrir da JOGOTECA](design/jogoteca-discovery-netflix.png)
+![Apresentação da JOGOTECA](docs/jogoteca-apresentacao.gif)
 
 ## Por que a JOGOTECA?
 
@@ -35,8 +35,6 @@ vontade de abrir.
 - **Backup em um clique:** salve a biblioteca inteira, com capas, em um único
   arquivo e restaure quando quiser, inclusive em outro computador.
 - **Leve seus dados com você:** exporte a biblioteca para CSV quando quiser.
-
-![Listas em estilo kanban](design/jogoteca-kanban-hover.png)
 
 ## Seus dados são seus
 

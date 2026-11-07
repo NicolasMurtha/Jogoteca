@@ -242,11 +242,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return (Brush)FindResource(key);
     }
 
-    private static Brush BrushFromHex(string color)
-    {
-        return (Brush)new BrushConverter().ConvertFromString(color)!;
-    }
-
     private static void OpenExternal(string target)
     {
         try

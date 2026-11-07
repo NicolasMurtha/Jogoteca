@@ -245,10 +245,22 @@
                                 </Grid.ColumnDefinitions>
                                 <primitives:DatePickerTextBox x:Name="PART_TextBox"
                                                               Grid.Column="0"
+                                                              Margin="12,0,4,0"
+                                                              VerticalAlignment="Center"
                                                               Background="Transparent"
                                                               BorderThickness="0"
                                                               Foreground="{TemplateBinding Foreground}"
-                                                              VerticalContentAlignment="Center" />
+                                                              CaretBrush="{TemplateBinding Foreground}">
+                                    <primitives:DatePickerTextBox.Template>
+                                        <ControlTemplate TargetType="primitives:DatePickerTextBox">
+                                            <ScrollViewer x:Name="PART_ContentHost"
+                                                          VerticalAlignment="Center"
+                                                          Focusable="False"
+                                                          HorizontalScrollBarVisibility="Hidden"
+                                                          VerticalScrollBarVisibility="Hidden" />
+                                        </ControlTemplate>
+                                    </primitives:DatePickerTextBox.Template>
+                                </primitives:DatePickerTextBox>
                                 <Button x:Name="PART_Button"
                                         Grid.Column="1"
                                         Margin="0,4,4,4"

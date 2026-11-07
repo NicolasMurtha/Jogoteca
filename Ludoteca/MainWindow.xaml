@@ -414,6 +414,7 @@
                                                              Fill="{Binding Color}" />
                                                     <TextBlock Text="{Binding Emoji}"
                                                                Style="{StaticResource EmojiText}"
+                                                               Foreground="#29282D"
                                                                FontSize="12"
                                                                Width="20"
                                                                Height="20"
@@ -2420,69 +2421,81 @@
                                Foreground="{DynamicResource TextSecondary}"
                                TextWrapping="Wrap" />
 
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="170" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,10,0">
-                            <TextBlock Text="Emoji" Margin="0,0,0,6" FontSize="11" FontWeight="SemiBold" />
-                            <ComboBox x:Name="ListEmojiComboBox"
-                                      ItemsSource="{Binding ListEmojiOptions}"
-                                      SelectedValue="{Binding SelectedListEmoji, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                      SelectedValuePath="Emoji"
-                                      Height="42"
-                                      Width="86"
-                                      HorizontalAlignment="Left"
-                                      Padding="8,4"
-                                      Background="{DynamicResource Surface}"
-                                      BorderBrush="{DynamicResource BorderBrush}"
-                                      Foreground="{DynamicResource TextPrimary}">
-                                <ComboBox.Resources>
-                                    <Style TargetType="{x:Type ComboBoxItem}">
-                                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-                                        <Setter Property="Background" Value="{DynamicResource Surface}" />
-                                        <Setter Property="HorizontalContentAlignment" Value="Center" />
-                                        <Setter Property="Padding" Value="3" />
-                                        <Style.Triggers>
-                                            <Trigger Property="IsHighlighted" Value="True">
-                                                <Setter Property="Background" Value="{DynamicResource ControlHover}" />
-                                            </Trigger>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter Property="Background" Value="{DynamicResource NavSelectedBackground}" />
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </ComboBox.Resources>
-                                <ComboBox.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel Width="168" />
-                                    </ItemsPanelTemplate>
-                                </ComboBox.ItemsPanel>
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding Emoji}"
-                                                   Style="{StaticResource EmojiText}"
-                                                   FontSize="19"
-                                                   Width="34"
-                                                   Height="30"
-                                                   LineHeight="28"
-                                                   ToolTip="{Binding Name}" />
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1">
-                            <TextBlock Text="Nome" Margin="0,0,0,6" FontSize="11" FontWeight="SemiBold" />
-                            <TextBox x:Name="NewListNameBox"
-                                     Style="{StaticResource TextInput}"
-                                     MaxLength="40"
-                                     KeyDown="NewListNameBox_KeyDown" />
-                        </StackPanel>
-                    </Grid>
+                    <TextBlock Text="Nome" Margin="0,0,0,6" FontSize="11" FontWeight="SemiBold" />
+                    <TextBox x:Name="NewListNameBox"
+                             Style="{StaticResource TextInput}"
+                             MaxLength="40"
+                             KeyDown="NewListNameBox_KeyDown" />
+
+                    <TextBlock Text="Emoji"
+                               Margin="0,17,0,8"
+                               FontSize="11"
+                               FontWeight="SemiBold" />
+                    <ListBox x:Name="ListEmojiPicker"
+                             ItemsSource="{Binding ListEmojiOptions}"
+                             SelectedValue="{Binding SelectedListEmoji, Mode=TwoWay}"
+                             SelectedValuePath="Emoji"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.Template>
+                            <ControlTemplate TargetType="ListBox">
+                                <ItemsPresenter />
+                            </ControlTemplate>
+                        </ListBox.Template>
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Cursor" Value="Hand" />
+                                <Setter Property="Margin" Value="0,0,6,6" />
+                                <Setter Property="ToolTip" Value="{Binding Name}" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="Chip"
+                                                    Width="40"
+                                                    Height="40"
+                                                    CornerRadius="11"
+                                                    Background="{DynamicResource Surface}"
+                                                    BorderBrush="{DynamicResource BorderBrush}"
+                                                    BorderThickness="1">
+                                                <ContentPresenter HorizontalAlignment="Center"
+                                                                  VerticalAlignment="Center" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Chip" Property="Background" Value="{DynamicResource ControlHover}" />
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="Chip" Property="Background" Value="{DynamicResource NavSelectedBackground}" />
+                                                    <Setter TargetName="Chip" Property="BorderBrush" Value="{DynamicResource FocusBorder}" />
+                                                    <Setter TargetName="Chip" Property="BorderThickness" Value="2" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Emoji}"
+                                           Style="{StaticResource EmojiText}"
+                                           Foreground="{DynamicResource TextPrimary}"
+                                           FontSize="18"
+                                           Width="30"
+                                           Height="28"
+                                           LineHeight="26" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
 
                     <TextBlock Text="Cor da lista"
-                               Margin="0,17,0,8"
+                               Margin="0,11,0,8"
                                FontSize="11"
                                FontWeight="SemiBold" />
                     <StackPanel Orientation="Horizontal">

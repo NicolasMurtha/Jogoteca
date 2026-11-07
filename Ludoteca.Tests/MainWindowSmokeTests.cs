@@ -42,6 +42,7 @@ public sealed class MainWindowSmokeTests(ITestOutputHelper output)
         Assert.InRange(report.GridCardsRealized, 1, LibrarySize / 2);
         Assert.InRange(report.ListRowsRealized, 1, LibrarySize / 2);
         Assert.True(report.SupportOpened);
+        Assert.Equal(ListEmojiCatalog.Options.Count, report.ListEditorEmojiOptions);
     }
 
     private static void OpenWindowAndVisitScreens(SmokeReport report)
@@ -124,6 +125,12 @@ public sealed class MainWindowSmokeTests(ITestOutputHelper output)
             window.DetailOverlay.Visibility = Visibility.Visible;
             Pump(TimeSpan.FromMilliseconds(500));
             window.DetailOverlay.Visibility = Visibility.Collapsed;
+
+            report.Add("Opening list editor");
+            window.ListEditorOverlay.Visibility = Visibility.Visible;
+            Pump(TimeSpan.FromMilliseconds(500));
+            report.ListEditorEmojiOptions = window.ListEmojiPicker.Items.Count;
+            window.ListEditorOverlay.Visibility = Visibility.Collapsed;
 
             report.Add("Opening support");
             Click(window.SupportButton);
@@ -304,6 +311,7 @@ public sealed class MainWindowSmokeTests(ITestOutputHelper output)
         public int GridCardsRealized { get; set; }
         public int ListRowsRealized { get; set; }
         public bool SupportOpened { get; set; }
+        public int ListEditorEmojiOptions { get; set; }
     }
 
     private sealed class BindingErrorListener(List<string> errors) : TraceListener

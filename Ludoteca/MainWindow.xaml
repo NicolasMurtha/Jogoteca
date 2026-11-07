@@ -109,7 +109,7 @@
                                            VerticalAlignment="Center" />
                                 <Border CornerRadius="13,13,0,0">
                                     <Border.Background>
-                                        <ImageBrush ImageSource="{Binding CoverDisplay}"
+                                        <ImageBrush ImageSource="{Binding CoverDisplay, Converter={StaticResource CoverImage}, ConverterParameter=168x200}"
                                                     Stretch="UniformToFill" />
                                     </Border.Background>
                                 </Border>
@@ -825,7 +825,7 @@
                                                                            VerticalAlignment="Center" />
                                                                 <Border CornerRadius="13,13,0,0">
                                                                     <Border.Background>
-                                                                        <ImageBrush ImageSource="{Binding CoverDisplay}"
+                                                                        <ImageBrush ImageSource="{Binding CoverDisplay, Converter={StaticResource CoverImage}, ConverterParameter=184x224}"
                                                                                     Stretch="UniformToFill" />
                                                                     </Border.Background>
                                                                 </Border>
@@ -1029,7 +1029,7 @@
                                                                                VerticalAlignment="Center" />
                                                                     <Border CornerRadius="8">
                                                                         <Border.Background>
-                                                                            <ImageBrush ImageSource="{Binding CoverDisplay}"
+                                                                            <ImageBrush ImageSource="{Binding CoverDisplay, Converter={StaticResource CoverImage}, ConverterParameter=52x72}"
                                                                                         Stretch="UniformToFill" />
                                                                         </Border.Background>
                                                                     </Border>
@@ -1267,7 +1267,7 @@
                                                                    VerticalAlignment="Center" />
                                                         <Border CornerRadius="10">
                                                             <Border.Background>
-                                                                <ImageBrush ImageSource="{Binding CoverDisplay}"
+                                                                <ImageBrush ImageSource="{Binding CoverDisplay, Converter={StaticResource CoverImage}, ConverterParameter=78x105}"
                                                                             Stretch="UniformToFill" />
                                                             </Border.Background>
                                                         </Border>
@@ -1460,7 +1460,7 @@
                                        VerticalAlignment="Center" />
                             <Border CornerRadius="15">
                                 <Border.Background>
-                                    <ImageBrush ImageSource="{Binding CoverDisplay}"
+                                    <ImageBrush ImageSource="{Binding CoverDisplay, Converter={StaticResource CoverImage}, ConverterParameter=205x300}"
                                                 Stretch="UniformToFill" />
                                 </Border.Background>
                             </Border>
@@ -1564,7 +1564,7 @@
                                            VerticalAlignment="Center" />
                                 <Border CornerRadius="15">
                                     <Border.Background>
-                                        <ImageBrush ImageSource="{Binding CoverDisplay}"
+                                        <ImageBrush ImageSource="{Binding CoverDisplay, Converter={StaticResource CoverImage}, ConverterParameter=205x285}"
                                                     Stretch="UniformToFill" />
                                     </Border.Background>
                                 </Border>

@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Ludoteca.Converters;
 using Ludoteca.Models;
 using Ludoteca.Services;
 using Ludoteca.Themes;
@@ -276,6 +277,7 @@ public partial class MainWindow
             SetListActionButtonsVisible(false);
 
             await _database.ClearLibraryAsync();
+            CoverImageConverter.ClearCache();
             ShowLibraryView();
             await RefreshAllAsync();
             ShowToast("Biblioteca limpa.");
@@ -412,6 +414,7 @@ public partial class MainWindow
 
     private void ResetViewState()
     {
+        CoverImageConverter.ClearCache();
         SettingsOverlay.Visibility = Visibility.Collapsed;
         DetailOverlay.Visibility = Visibility.Collapsed;
         SearchOverlay.Visibility = Visibility.Collapsed;

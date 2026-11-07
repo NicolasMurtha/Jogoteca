@@ -136,11 +136,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            MessageBox.Show(
-                $"Não foi possível iniciar a JOGOTECA.\n\n{ex.Message}",
+            App.ReportError(
                 "Erro ao iniciar",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+                $"Não foi possível iniciar a JOGOTECA.\n\n{ex.Message}",
+                ex);
         }
     }
 

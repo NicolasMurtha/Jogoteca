@@ -20,22 +20,31 @@ public sealed class MainWindowSmokeTests(ITestOutputHelper output)
     [Fact]
     public void MainScreensOpenWithoutBindingErrors()
     {
-        var report = RunOnStaThread(OpenWindowAndVisitScreens);
-
-        foreach (var line in report.Log.Concat(report.BindingErrors.Distinct()))
+        var report = new SmokeReport();
+        try
         {
-            output.WriteLine(line);
+            RunOnStaThread(() => OpenWindowAndVisitScreens(report));
+        }
+        finally
+        {
+            lock (report)
+            {
+                foreach (var line in report.Log.Concat(report.BindingErrors.Distinct()))
+                {
+                    output.WriteLine(line);
+                }
+            }
         }
 
+        Assert.Empty(report.Errors);
         Assert.Empty(report.BindingErrors);
         // Only the cards on screen (plus a small margin) are created.
         Assert.InRange(report.GridCardsRealized, 1, LibrarySize / 2);
         Assert.InRange(report.ListRowsRealized, 1, LibrarySize / 2);
     }
 
-    private static SmokeReport OpenWindowAndVisitScreens()
+    private static void OpenWindowAndVisitScreens(SmokeReport report)
     {
-        var report = new SmokeReport();
         var dataDirectory = Path.Combine(Path.GetTempPath(), $"jogoteca-smoke-{Guid.NewGuid():N}");
         var previousDataDirectory = Environment.GetEnvironmentVariable("JOGOTECA_DATA_DIR");
         var listener = new BindingErrorListener(report.BindingErrors);
@@ -48,6 +57,8 @@ public sealed class MainWindowSmokeTests(ITestOutputHelper output)
             PresentationTraceSources.DataBindingSource.Switch.Level = SourceLevels.Error;
             PresentationTraceSources.DataBindingSource.Listeners.Add(listener);
 
+            App.ShowErrorDialogs = false;
+            report.Add("Creating application");
             var app = Application.Current ?? new App();
             if (app is App ourApp)
             {
@@ -61,20 +72,25 @@ public sealed class MainWindowSmokeTests(ITestOutputHelper output)
                 Left = 0,
                 Top = 0
             };
+            report.Add("Showing window");
             window.Show();
-            PumpUntil(() => window.Library.Lists.Count > 0, TimeSpan.FromSeconds(20));
-            report.Log.Add($"Lists loaded: {window.Library.Lists.Count}");
+            report.Add("Waiting for lists");
+            PumpUntil(() => window.Library.Lists.Count > 0 || App.SuppressedErrors.Count > 0, TimeSpan.FromSeconds(20));
+            report.Errors.AddRange(App.SuppressedErrors.Select(error => error.ToString()));
+            report.Add($"Lists loaded: {window.Library.Lists.Count}");
 
+            report.Add("Opening library");
             Click(window.AllGamesButton);
             PumpUntil(() => window.Library.Games.Count == LibrarySize, TimeSpan.FromSeconds(20));
-            report.Log.Add($"Library games: {window.Library.Games.Count}");
+            report.Add($"Library games: {window.Library.Games.Count}");
             report.GridCardsRealized = CountNamed(window.LibraryGridView, "GameCardHoverArea");
-            report.Log.Add($"Grid cards realized: {report.GridCardsRealized}");
+            report.Add($"Grid cards realized: {report.GridCardsRealized}");
 
+            report.Add("Switching to list layout");
             Click(window.LibraryListViewButton);
             Pump(TimeSpan.FromSeconds(1));
             report.ListRowsRealized = CountRealizedRows(window.LibraryListView);
-            report.Log.Add($"List rows realized: {report.ListRowsRealized}");
+            report.Add($"List rows realized: {report.ListRowsRealized}");
             Click(window.LibraryGridViewButton);
 
             var catalogGame = new GameSearchResult
@@ -89,6 +105,7 @@ public sealed class MainWindowSmokeTests(ITestOutputHelper output)
                 new CatalogPage { Results = [catalogGame] },
                 1,
                 reset: true);
+            report.Add("Opening discover");
             Click(window.DiscoverButton);
             Pump(TimeSpan.FromMilliseconds(500));
 
@@ -107,9 +124,10 @@ public sealed class MainWindowSmokeTests(ITestOutputHelper output)
             Pump(TimeSpan.FromMilliseconds(500));
             window.DetailOverlay.Visibility = Visibility.Collapsed;
 
+            report.Add("Closing window");
             window.Close();
             Pump(TimeSpan.FromMilliseconds(200));
-            return report;
+            report.Errors.AddRange(App.SuppressedErrors.Select(error => error.ToString()));
         }
         finally
         {
@@ -237,15 +255,14 @@ public sealed class MainWindowSmokeTests(ITestOutputHelper output)
         while (stopwatch.Elapsed < duration);
     }
 
-    private static SmokeReport RunOnStaThread(Func<SmokeReport> action)
+    private static void RunOnStaThread(Action action)
     {
-        SmokeReport? result = null;
         ExceptionDispatchInfo? failure = null;
         var thread = new Thread(() =>
         {
             try
             {
-                result = action();
+                action();
             }
             catch (Exception ex)
             {
@@ -263,13 +280,21 @@ public sealed class MainWindowSmokeTests(ITestOutputHelper output)
         }
 
         failure?.Throw();
-        return result!;
     }
 
     private sealed class SmokeReport
     {
         public List<string> BindingErrors { get; } = [];
+        public List<string> Errors { get; } = [];
         public List<string> Log { get; } = [];
+
+        public void Add(string line)
+        {
+            lock (this)
+            {
+                Log.Add($"{DateTime.Now:HH:mm:ss.fff} {line}");
+            }
+        }
         public int GridCardsRealized { get; set; }
         public int ListRowsRealized { get; set; }
     }

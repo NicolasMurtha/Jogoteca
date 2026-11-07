@@ -37,6 +37,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly DataExportService _dataExportService;
     private readonly DispatcherTimer _toastTimer;
     private readonly SettingsService _settingsService;
+    private readonly BackupService _backupService;
     private readonly UpdateService _updateService = new();
 
     private CancellationTokenSource? _searchCancellation;
@@ -75,6 +76,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             catalogCacheDirectory: Path.Combine(_database.AppDataDirectory, "catalog-cache"));
         _dataExportService = new DataExportService(_database);
         _settingsService = new SettingsService(_database);
+        _backupService = new BackupService(_database);
         _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.2) };
         _toastTimer.Tick += (_, _) =>
         {

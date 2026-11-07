@@ -240,7 +240,7 @@ public partial class MainWindow
         finally
         {
             ExportDataButton.IsEnabled = true;
-            ExportDataButton.Content = "Exportar dados";
+            ExportDataButton.Content = "Exportar CSV";
         }
     }
     private async void ClearLibrary_Click(object sender, RoutedEventArgs e)
@@ -298,36 +298,12 @@ public partial class MainWindow
 
         try
         {
-            SettingsOverlay.Visibility = Visibility.Collapsed;
-            DetailOverlay.Visibility = Visibility.Collapsed;
-            SearchOverlay.Visibility = Visibility.Collapsed;
-            CatalogDetailOverlay.Visibility = Visibility.Collapsed;
-            ManualGameOverlay.Visibility = Visibility.Collapsed;
-            ListEditorOverlay.Visibility = Visibility.Collapsed;
-
-            _selectedGame = null;
-            _selectedCatalogGame = null;
-            _editingListId = null;
-            _activeLibraryFilter = GameLibraryFilter.None;
-            _librarySortMode = LibrarySortMode.Default;
-            NotifySortHeaderChanges();
-            _libraryNameFilter = string.Empty;
-            LibraryNameFilterBox.Clear();
-
+            ResetViewState();
             var currentTheme = _settings.Theme;
             await _database.ResetDatabaseAsync();
             _settings = new AppSettings { Theme = currentTheme };
             await _settingsService.SaveAsync(_settings);
 
-            SearchResults.Clear();
-            foreach (var section in CatalogSections)
-            {
-                section.Clear();
-            }
-            SetSelectedListId(null);
-            SelectedListTitle = "Biblioteca";
-            SelectedListSubtitle = "Todos os jogos que você adicionou";
-            SetListActionButtonsVisible(false);
             ConfigureProviderUi();
             ShowLibraryView();
             await RefreshAllAsync();
@@ -338,6 +314,132 @@ public partial class MainWindow
             ShowToast($"Não foi possível resetar o database: {ex.Message}");
         }
     }
+    private async void CreateBackup_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = "Salvar backup da JOGOTECA",
+            FileName = BackupService.SuggestedFileName(DateTime.Now),
+            DefaultExt = BackupService.FileExtension,
+            Filter = $"Backup da JOGOTECA (*{BackupService.FileExtension})|*{BackupService.FileExtension}",
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+        };
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        CreateBackupButton.IsEnabled = false;
+        CreateBackupButton.Content = "Salvando...";
+        try
+        {
+            var info = await _backupService.CreateBackupAsync(dialog.FileName);
+            ShowToast($"Backup salvo: {info.GameCount} {(info.GameCount == 1 ? "jogo" : "jogos")} e {info.CoverCount} capas.");
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Não foi possível fazer o backup: {ex.Message}");
+        }
+        finally
+        {
+            CreateBackupButton.IsEnabled = true;
+            CreateBackupButton.Content = "Fazer backup";
+        }
+    }
+
+    private async void RestoreBackup_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Escolha o backup da JOGOTECA",
+            Filter = $"Backup da JOGOTECA (*{BackupService.FileExtension})|*{BackupService.FileExtension}",
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+        };
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        BackupInfo info;
+        try
+        {
+            info = await _backupService.ReadBackupInfoAsync(dialog.FileName);
+        }
+        catch (BackupException ex)
+        {
+            ShowToast(ex.Message);
+            return;
+        }
+
+        var confirmed = await ShowConfirmationAsync(
+            "Restaurar backup",
+            $"Restaurar o backup de {info.CreatedAt.LocalDateTime:dd/MM/yyyy 'às' HH:mm}, com {info.GameCount} {(info.GameCount == 1 ? "jogo" : "jogos")}?\n\n" +
+            "A biblioteca atual será substituída. Antes disso, a JOGOTECA guarda uma cópia dela na pasta dos dados, em \"backups\".",
+            "Restaurar");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        RestoreBackupButton.IsEnabled = false;
+        RestoreBackupButton.Content = "Restaurando...";
+        try
+        {
+            ResetViewState();
+            var restored = await _backupService.RestoreBackupAsync(dialog.FileName);
+            _settings = await _settingsService.LoadAsync();
+            ApplyTheme(_settings.Theme);
+            ConfigureProviderUi();
+            ShowLibraryView();
+            await RefreshAllAsync();
+            ShowToast($"Backup restaurado: {restored.GameCount} {(restored.GameCount == 1 ? "jogo" : "jogos")}.");
+            await LoadDiscoveryAsync(reset: true);
+        }
+        catch (BackupException ex)
+        {
+            ShowToast(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Não foi possível restaurar o backup: {ex.Message}");
+        }
+        finally
+        {
+            RestoreBackupButton.IsEnabled = true;
+            RestoreBackupButton.Content = "Restaurar backup";
+        }
+    }
+
+    private void ResetViewState()
+    {
+        SettingsOverlay.Visibility = Visibility.Collapsed;
+        DetailOverlay.Visibility = Visibility.Collapsed;
+        SearchOverlay.Visibility = Visibility.Collapsed;
+        CatalogDetailOverlay.Visibility = Visibility.Collapsed;
+        ManualGameOverlay.Visibility = Visibility.Collapsed;
+        ListEditorOverlay.Visibility = Visibility.Collapsed;
+
+        _selectedGame = null;
+        _selectedCatalogGame = null;
+        _editingListId = null;
+        _activeLibraryFilter = GameLibraryFilter.None;
+        _librarySortMode = LibrarySortMode.Default;
+        NotifySortHeaderChanges();
+        _libraryNameFilter = string.Empty;
+        LibraryNameFilterBox.Clear();
+
+        SearchResults.Clear();
+        foreach (var section in CatalogSections)
+        {
+            section.Clear();
+        }
+
+        SetSelectedListId(null);
+        SelectedListTitle = "Biblioteca";
+        SelectedListSubtitle = "Todos os jogos que você adicionou";
+        SetListActionButtonsVisible(false);
+    }
+
     private void ConfigureProviderUi()
     {
         if (ProviderDescriptionText is null || OnlineSearchPanel is null)

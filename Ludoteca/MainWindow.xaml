@@ -1778,6 +1778,7 @@
               Visibility="Collapsed"
               Panel.ZIndex="40">
             <Border Width="660"
+                    Margin="0,24"
                     Padding="28"
                     Background="{DynamicResource AppBackground}"
                     CornerRadius="22"
@@ -1785,9 +1786,10 @@
                     VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel>
                         <Grid>
                             <StackPanel>
@@ -1834,23 +1836,31 @@
                                 BorderBrush="{DynamicResource BorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="15">
-                            <Grid>
-                                <StackPanel Margin="0,0,210,0">
-                                    <TextBlock Text="Exportar dados"
-                                               FontSize="16"
-                                               FontWeight="SemiBold" />
-                                    <TextBlock Text="Gera um arquivo CSV com todos os jogos e suas listas, notas e reviews."
-                                               Margin="0,5,0,0"
-                                               Foreground="{DynamicResource TextSecondary}"
-                                               TextWrapping="Wrap" />
+                            <StackPanel>
+                                <TextBlock Text="Backup e exportação"
+                                           FontSize="16"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="O backup guarda tudo (jogos, listas, notas, reviews e capas) em um único arquivo, para restaurar depois ou em outro computador. O CSV serve para abrir a biblioteca em planilhas."
+                                           Margin="0,5,0,0"
+                                           Foreground="{DynamicResource TextSecondary}"
+                                           TextWrapping="Wrap" />
+                                <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                                    <Button x:Name="CreateBackupButton"
+                                            Style="{StaticResource PrimaryButton}"
+                                            Margin="0,0,9,0"
+                                            Click="CreateBackup_Click"
+                                            Content="Fazer backup" />
+                                    <Button x:Name="RestoreBackupButton"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Margin="0,0,9,0"
+                                            Click="RestoreBackup_Click"
+                                            Content="Restaurar backup" />
+                                    <Button x:Name="ExportDataButton"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Click="ExportData_Click"
+                                            Content="Exportar CSV" />
                                 </StackPanel>
-                                <Button x:Name="ExportDataButton"
-                                        Style="{StaticResource PrimaryButton}"
-                                        HorizontalAlignment="Right"
-                                        VerticalAlignment="Center"
-                                        Click="ExportData_Click"
-                                        Content="Exportar dados" />
-                            </Grid>
+                            </StackPanel>
                         </Border>
 
                         <Border Margin="0,12,0,0" Padding="18" Background="{DynamicResource StatLibraryBackground}" CornerRadius="15">
@@ -1949,6 +1959,7 @@
                             </Grid>
                         </Border>
                     </StackPanel>
+                    </ScrollViewer>
 
                     <Grid Grid.Row="1" Margin="0,20,0,0">
                         <Button Style="{StaticResource SecondaryButton}"

@@ -32,6 +32,8 @@ vontade de abrir.
 - **Não perca lançamentos:** a JOGOTECA avisa quando um jogo da sua
   biblioteca é lançado.
 - **Tema claro e escuro**, para jogar de dia ou de madrugada.
+- **Backup em um clique:** salve a biblioteca inteira, com capas, em um único
+  arquivo e restaure quando quiser, inclusive em outro computador.
 - **Leve seus dados com você:** exporte a biblioteca para CSV quando quiser.
 
 ![Listas em estilo kanban](design/jogoteca-kanban-hover.png)
@@ -39,6 +41,8 @@ vontade de abrir.
 ## Seus dados são seus
 
 - **Sem conta e sem nuvem:** tudo fica salvo no seu computador.
+- **Nada se perde:** antes de restaurar um backup, a JOGOTECA guarda uma cópia
+  da biblioteca atual.
 - **Funciona offline:** biblioteca, listas e cadastro manual não precisam de
   internet.
 - **Chaves de API protegidas** pela criptografia do próprio Windows.

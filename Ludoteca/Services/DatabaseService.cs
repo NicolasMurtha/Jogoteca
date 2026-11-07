@@ -556,6 +556,42 @@ public sealed class DatabaseService
         DeleteCoverFile(coverPath);
     }
 
+    // Restored backups carry cover paths from the computer that made them.
+    public async Task RelocateCoverPathsAsync()
+    {
+        await using var connection = await OpenConnectionAsync();
+        var paths = new List<(int Id, string Path)>();
+        var select = connection.CreateCommand();
+        select.CommandText = "SELECT Id, LocalCoverPath FROM Games WHERE LocalCoverPath <> '';";
+        await using (var reader = await select.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                paths.Add((reader.GetInt32(0), reader.GetString(1)));
+            }
+        }
+
+        await using var transaction = connection.BeginTransaction();
+        foreach (var (id, path) in paths)
+        {
+            var fileName = Path.GetFileName(path.Replace('\\', '/'));
+            var relocated = Path.Combine(CoversDirectory, fileName);
+            if (relocated == path)
+            {
+                continue;
+            }
+
+            var update = connection.CreateCommand();
+            update.Transaction = transaction;
+            update.CommandText = "UPDATE Games SET LocalCoverPath = $path WHERE Id = $id;";
+            update.Parameters.AddWithValue("$path", relocated);
+            update.Parameters.AddWithValue("$id", id);
+            await update.ExecuteNonQueryAsync();
+        }
+
+        await transaction.CommitAsync();
+    }
+
     public async Task<int?> FindEquivalentGameAsync(GameSearchResult game)
     {
         var name = game.Name.Trim();

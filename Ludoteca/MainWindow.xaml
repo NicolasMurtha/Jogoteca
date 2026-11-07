@@ -785,12 +785,13 @@
                                       ItemsSource="{Binding Library.Games}"
                                       VirtualizingPanel.IsVirtualizing="True"
                                       VirtualizingPanel.VirtualizationMode="Standard"
-                                      VirtualizingPanel.ScrollUnit="Pixel">
+                                      VirtualizingPanel.ScrollUnit="Pixel"
+                                      ScrollViewer.CanContentScroll="True">
                             <ItemsControl.Template>
                                 <ControlTemplate TargetType="ItemsControl">
                                     <ScrollViewer VerticalScrollBarVisibility="Hidden"
                                                   HorizontalScrollBarVisibility="Disabled"
-                                                  CanContentScroll="True"
+                                                  CanContentScroll="{TemplateBinding ScrollViewer.CanContentScroll}"
                                                   Focusable="False"
                                                   Padding="28,0,20,28">
                                         <ItemsPresenter />
@@ -998,12 +999,13 @@
                                           HorizontalContentAlignment="Stretch"
                                           VirtualizingPanel.IsVirtualizing="True"
                                           VirtualizingPanel.VirtualizationMode="Standard"
-                                          VirtualizingPanel.ScrollUnit="Pixel">
+                                          VirtualizingPanel.ScrollUnit="Pixel"
+                                          ScrollViewer.CanContentScroll="True">
                                 <ItemsControl.Template>
                                     <ControlTemplate TargetType="ItemsControl">
                                         <ScrollViewer VerticalScrollBarVisibility="Hidden"
                                                       HorizontalScrollBarVisibility="Disabled"
-                                                      CanContentScroll="True"
+                                                      CanContentScroll="{TemplateBinding ScrollViewer.CanContentScroll}"
                                                       Focusable="False"
                                                       Padding="0,0,0,28">
                                             <ItemsPresenter />

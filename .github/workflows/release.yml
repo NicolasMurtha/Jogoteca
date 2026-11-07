@@ -46,7 +46,7 @@ jobs:
           {
             echo "## O que mudou"
             echo
-            git log "$range" --no-merges --format='### %s%n%n%b' -- . ':!.github'
+            git log "$range" --no-merges --grep='^JOGOTECA ' --format='### %s%n%n%b'
             if [ -n "$previous" ]; then
               echo
               echo "**Todas as mudanças:** https://github.com/${{ github.repository }}/compare/$previous...$tag"

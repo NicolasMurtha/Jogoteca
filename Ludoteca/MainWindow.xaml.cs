@@ -41,8 +41,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly BackupService _backupService;
     private readonly UpdateService _updateService = new();
 
-    private CancellationTokenSource? _searchCancellation;
-    private CancellationTokenSource? _catalogCancellation;
     private TaskCompletionSource<bool>? _confirmationCompletion;
     private AppSettings _settings = new();
     private int? _editingListId;
@@ -53,7 +51,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _isDragging;
     private bool _isListDragging;
     private bool _isInitializingDetail;
-    private int _catalogLoadVersion;
     private string _selectedListColor = ListColors[0];
     private string _selectedListEmoji = ListEmojiCatalog.Game;
     private bool _isDarkTheme;
@@ -68,6 +65,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _settingsService = new SettingsService(_database);
         _backupService = new BackupService(_database);
         Library = new LibraryViewModel(_database);
+        Discover = new DiscoverViewModel(_gameApi);
+        Search = new SearchViewModel(_gameApi);
         _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.2) };
         _toastTimer.Tick += (_, _) =>
         {
@@ -80,43 +79,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public LibraryViewModel Library { get; }
+    public DiscoverViewModel Discover { get; }
+    public SearchViewModel Search { get; }
 
-    public ObservableCollection<GameSearchResult> SearchResults { get; } = [];
     public ObservableCollection<ListEmojiOption> ListEmojiOptions { get; } =
         new(ListEmojiCatalog.Options);
-    public ObservableCollection<CatalogSection> CatalogSections { get; } =
-    [
-        new CatalogSection
-        {
-            Feed = CatalogFeed.Recommended,
-            Title = "Para você",
-            Subtitle = "Jogos bem avaliados para começar uma nova aventura."
-        },
-        new CatalogSection
-        {
-            Feed = CatalogFeed.Trending,
-            Title = "Trending games",
-            Subtitle = "Os jogos que estão concentrando a atenção dos jogadores agora."
-        },
-        new CatalogSection
-        {
-            Feed = CatalogFeed.MostAnticipated,
-            Title = "Mais aguardados",
-            Subtitle = "Os próximos títulos com maior expectativa da comunidade."
-        },
-        new CatalogSection
-        {
-            Feed = CatalogFeed.Upcoming,
-            Title = "Próximos lançamentos",
-            Subtitle = "O que está chegando nos próximos meses, em ordem de lançamento."
-        },
-        new CatalogSection
-        {
-            Feed = CatalogFeed.Latest,
-            Title = "Últimos lançamentos",
-            Subtitle = "Jogos lançados recentemente para você não perder nenhuma novidade."
-        }
-    ];
     public ObservableCollection<ListMembershipOption> MembershipOptions { get; } = [];
     public ObservableCollection<ReleaseNotification> ReleaseNotifications { get; } = [];
     public ObservableCollection<UpcomingReleaseWatch> UpcomingReleaseWatches { get; } = [];
@@ -163,7 +130,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             await RefreshAllAsync();
             ConfigureProviderUi();
             ShowDiscoverView();
-            await LoadDiscoveryAsync(reset: true);
+            await LoadDiscoveryAsync();
             await CheckForUpdatesAsync();
             ShowApiWelcomeIfNeeded();
         }
@@ -179,10 +146,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
-        _searchCancellation?.Cancel();
-        _searchCancellation?.Dispose();
-        _catalogCancellation?.Cancel();
-        _catalogCancellation?.Dispose();
+        Search.Cancel();
+        Discover.Cancel();
         _gameApi.Dispose();
     }
 

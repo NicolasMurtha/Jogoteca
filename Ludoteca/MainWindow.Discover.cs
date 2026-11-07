@@ -21,9 +21,9 @@ public partial class MainWindow
     private async void DiscoverButton_Click(object sender, RoutedEventArgs e)
     {
         ShowDiscoverView();
-        if (_settings.HasAnyProvider && CatalogSections.All(section => section.Games.Count == 0))
+        if (_settings.HasAnyProvider && Discover.IsEmpty)
         {
-            await LoadDiscoveryAsync(reset: true);
+            await LoadDiscoveryAsync();
         }
     }
     private void ShowDiscoverView()
@@ -33,122 +33,18 @@ public partial class MainWindow
         DiscoverButton.Background = ResourceBrush("NavSelectedBackground");
         AllGamesButton.Background = Brushes.Transparent;
     }
-    private async Task LoadDiscoveryAsync(bool reset)
+    private async Task LoadDiscoveryAsync()
     {
-        ConfigureCatalogState();
-        if (!_settings.HasAnyProvider)
+        if (await Discover.LoadAsync(_settings) is { } error)
         {
-            return;
-        }
-
-        if (reset)
-        {
-            _catalogCancellation?.Cancel();
-            _catalogCancellation?.Dispose();
-            _catalogCancellation = new CancellationTokenSource();
-            foreach (var section in CatalogSections)
-            {
-                section.Clear();
-            }
-        }
-
-        if (!reset)
-        {
-            return;
-        }
-
-        var loadVersion = ++_catalogLoadVersion;
-        DiscoveryLoadingState.Visibility = Visibility.Visible;
-        var cancellationToken = _catalogCancellation?.Token ?? CancellationToken.None;
-
-        try
-        {
-            foreach (var section in CatalogSections)
-            {
-                section.TryBeginLoading();
-            }
-
-            var pages = await _gameApi.GetCatalogBatchAsync(
-                CatalogSections.Select(section => section.Feed),
-                1,
-                _settings,
-                cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
-            foreach (var section in CatalogSections)
-            {
-                section.ApplyPage(
-                    pages.GetValueOrDefault(section.Feed) ?? new CatalogPage(),
-                    1,
-                    reset: true);
-            }
-
-            if (CatalogSections.All(section => section.Games.Count == 0))
-            {
-                DiscoveryUnavailableTitle.Text = "Catálogo temporariamente indisponível";
-                DiscoveryUnavailableMessage.Text =
-                    "As fontes configuradas não retornaram jogos agora. Verifique as credenciais ou tente novamente mais tarde.";
-                DiscoveryContent.Visibility = Visibility.Collapsed;
-                DiscoveryUnavailableState.Visibility = Visibility.Visible;
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // A new catalog load superseded this one.
-        }
-        catch (Exception ex)
-        {
-            ShowToast($"Não foi possível carregar o catálogo: {ex.Message}");
-            if (CatalogSections.All(section => section.Games.Count == 0))
-            {
-                DiscoveryUnavailableTitle.Text = "Catálogo temporariamente indisponível";
-                DiscoveryUnavailableMessage.Text = ex.Message;
-                DiscoveryContent.Visibility = Visibility.Collapsed;
-                DiscoveryUnavailableState.Visibility = Visibility.Visible;
-            }
-        }
-        finally
-        {
-            if (loadVersion == _catalogLoadVersion)
-            {
-                foreach (var section in CatalogSections)
-                {
-                    section.FinishLoading();
-                }
-
-                DiscoveryLoadingState.Visibility = Visibility.Collapsed;
-            }
+            ShowToast(error);
         }
     }
-    private async Task LoadNextCatalogPageAsync(
-        CatalogSection section,
-        CancellationToken cancellationToken)
+    private async Task LoadNextCatalogPageAsync(CatalogSection section)
     {
-        if (!section.TryBeginLoading())
+        if (await Discover.LoadNextPageAsync(section, _settings) is { } error)
         {
-            return;
-        }
-
-        try
-        {
-            var nextPage = section.CurrentPage + 1;
-            var page = await _gameApi.GetCatalogAsync(
-                section.Feed,
-                nextPage,
-                _settings,
-                cancellationToken);
-            section.ApplyPage(page, nextPage, reset: false);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            // The catalog was refreshed or the window is closing.
-        }
-        catch (Exception ex)
-        {
-            ShowToast($"Não foi possível carregar mais jogos: {ex.Message}");
-        }
-        finally
-        {
-            section.FinishLoading();
+            ShowToast(error);
         }
     }
     private async void CatalogSectionScrollViewer_ScrollChanged(
@@ -169,8 +65,7 @@ public partial class MainWindow
             return;
         }
 
-        var cancellationToken = _catalogCancellation?.Token ?? CancellationToken.None;
-        await LoadNextCatalogPageAsync(section, cancellationToken);
+        await LoadNextCatalogPageAsync(section);
     }
     private void CatalogSectionScrollViewer_PreviewMouseWheel(
         object sender,
@@ -209,8 +104,7 @@ public partial class MainWindow
         if (scrollViewer.DataContext is CatalogSection section &&
             targetOffset >= scrollViewer.ScrollableWidth - scrollViewer.ViewportWidth * 0.3)
         {
-            var cancellationToken = _catalogCancellation?.Token ?? CancellationToken.None;
-            await LoadNextCatalogPageAsync(section, cancellationToken);
+            await LoadNextCatalogPageAsync(section);
         }
     }
     private async void CatalogCard_Click(object sender, RoutedEventArgs e)
@@ -277,26 +171,6 @@ public partial class MainWindow
     }
     private void ConfigureCatalogState()
     {
-        if (DiscoveryUnavailableState is null || DiscoveryContent is null)
-        {
-            return;
-        }
-
-        DiscoveryUnavailableState.Visibility = _settings.HasAnyProvider
-            ? Visibility.Collapsed
-            : Visibility.Visible;
-        DiscoveryContent.Visibility = _settings.HasAnyProvider
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-        DiscoveryUnavailableTitle.Text = "Catálogo online opcional";
-        DiscoveryUnavailableMessage.Text =
-            "Configure IGDB ou RAWG para ver recomendações e lançamentos. Sua biblioteca e o cadastro manual continuam funcionando normalmente.";
-        CatalogAttributionText.Text = (_settings.HasIgdb, _settings.HasRawg) switch
-        {
-            (true, true) => "Dados por IGDB e RAWG",
-            (true, false) => "Dados por IGDB",
-            (false, true) => "Dados por RAWG",
-            _ => string.Empty
-        };
+        Discover.Configure(_settings);
     }
 }

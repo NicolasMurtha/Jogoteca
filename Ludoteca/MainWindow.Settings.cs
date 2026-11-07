@@ -188,7 +188,7 @@ public partial class MainWindow
             ShowToast(igdbResult == ProviderCheckResult.Valid || rawgResult == ProviderCheckResult.Valid
                 ? "Catálogo conectado! Configurações salvas com segurança."
                 : "Configurações salvas com segurança.");
-            await LoadDiscoveryAsync(reset: true);
+            await LoadDiscoveryAsync();
         }
         catch (Exception ex)
         {
@@ -388,7 +388,7 @@ public partial class MainWindow
             ShowLibraryView();
             await RefreshAllAsync();
             ShowToast($"Backup restaurado: {restored.GameCount} {(restored.GameCount == 1 ? "jogo" : "jogos")}.");
-            await LoadDiscoveryAsync(reset: true);
+            await LoadDiscoveryAsync();
         }
         catch (BackupException ex)
         {
@@ -421,11 +421,8 @@ public partial class MainWindow
         Library.Reset();
         LibraryNameFilterBox.Clear();
 
-        SearchResults.Clear();
-        foreach (var section in CatalogSections)
-        {
-            section.Clear();
-        }
+        Search.Clear();
+        Discover.Clear();
     }
 
     private void ConfigureProviderUi()

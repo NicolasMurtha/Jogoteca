@@ -451,15 +451,15 @@
                                     BorderBrush="{DynamicResource WarningBorder}"
                                     BorderThickness="1"
                                     CornerRadius="18"
-                                    Visibility="Collapsed">
+                                    Visibility="{Binding Discover.IsUnavailable, Converter={StaticResource BoolToVisibility}}">
                                 <Grid>
                                     <StackPanel Margin="0,0,190,0">
                                         <TextBlock x:Name="DiscoveryUnavailableTitle"
-                                                   Text="Catálogo online opcional"
+                                                   Text="{Binding Discover.UnavailableTitle}"
                                                    FontSize="18"
                                                    FontWeight="SemiBold" />
                                         <TextBlock x:Name="DiscoveryUnavailableMessage"
-                                                   Text="Configure IGDB ou RAWG para ver recomendações e lançamentos. Sua biblioteca e o cadastro manual continuam funcionando normalmente."
+                                                   Text="{Binding Discover.UnavailableMessage}"
                                                    Margin="0,7,0,0"
                                                    Foreground="{DynamicResource TextSecondary}"
                                                    TextWrapping="Wrap"
@@ -473,14 +473,15 @@
                                 </Grid>
                             </Border>
 
-                            <StackPanel x:Name="DiscoveryContent">
+                            <StackPanel x:Name="DiscoveryContent"
+                                        Visibility="{Binding Discover.IsContentVisible, Converter={StaticResource BoolToVisibility}}">
                                 <TextBlock Margin="0,22,6,0"
                                            HorizontalAlignment="Right"
                                            Text="As faixas carregam mais jogos perto do fim e usam cache por 12 horas"
                                            Foreground="{DynamicResource TextSecondary}"
                                            FontSize="11" />
 
-                                <ItemsControl ItemsSource="{Binding CatalogSections}">
+                                <ItemsControl ItemsSource="{Binding Discover.Sections}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <StackPanel Margin="0,24,0,0"
@@ -567,7 +568,7 @@
 
                                 <StackPanel x:Name="DiscoveryLoadingState"
                                             Margin="0,34,0,24"
-                                            Visibility="Collapsed">
+                                            Visibility="{Binding Discover.IsLoading, Converter={StaticResource BoolToVisibility}}">
                                     <ProgressBar Width="190"
                                                  Height="5"
                                                  IsIndeterminate="True" />
@@ -578,6 +579,7 @@
                                 </StackPanel>
 
                                 <TextBlock x:Name="CatalogAttributionText"
+                                           Text="{Binding Discover.AttributionText}"
                                            Margin="0,14,6,0"
                                            HorizontalAlignment="Right"
                                            Foreground="{DynamicResource TextSecondary}"
@@ -1270,7 +1272,7 @@
 
                     <Grid Grid.Row="2">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <ItemsControl ItemsSource="{Binding SearchResults}">
+                            <ItemsControl ItemsSource="{Binding Search.Results}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Border Margin="0,0,5,12"
@@ -1337,19 +1339,20 @@
 
                         <StackPanel x:Name="SearchEmptyState"
                                     VerticalAlignment="Center"
-                                    Visibility="Collapsed">
+                                    Visibility="{Binding Search.IsEmptyStateVisible, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock FontFamily="Segoe Fluent Icons"
                                        Text="&#xE721;"
                                        FontSize="31"
                                        Foreground="{DynamicResource EmptyGlyphForeground}"
                                        HorizontalAlignment="Center" />
                             <TextBlock x:Name="SearchEmptyTitle"
-                                       Text="Busque pelo nome de um jogo"
+                                       Text="{Binding Search.EmptyTitle}"
                                        Margin="0,13,0,0"
                                        FontSize="16"
                                        FontWeight="SemiBold"
                                        TextAlignment="Center" />
                             <TextBlock x:Name="SearchEmptyMessage"
+                                       Text="{Binding Search.EmptyMessage}"
                                        Margin="0,6,0,0"
                                        Foreground="{DynamicResource TextSecondary}"
                                        TextAlignment="Center"
@@ -1363,7 +1366,7 @@
 
                         <StackPanel x:Name="SearchLoadingState"
                                     VerticalAlignment="Center"
-                                    Visibility="Collapsed">
+                                    Visibility="{Binding Search.IsLoading, Converter={StaticResource BoolToVisibility}}">
                             <ProgressBar Width="180" Height="5" IsIndeterminate="True" />
                             <TextBlock Text="Consultando as fontes..."
                                        Margin="0,13,0,0"

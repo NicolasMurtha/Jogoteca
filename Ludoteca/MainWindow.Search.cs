@@ -30,14 +30,14 @@ public partial class MainWindow
         }
         else if (!_settings.HasAnyProvider)
         {
-            SearchResults.Clear();
-            ShowSearchEmpty(
+            Search.Clear();
+            Search.ShowEmpty(
                 "Busca online não configurada",
                 "Cadastre manualmente ou configure uma API. Nenhuma informação além do nome é obrigatória.");
         }
         else
         {
-            ShowSearchEmpty(
+            Search.ShowEmpty(
                 "Busque pelo nome de um jogo",
                 "Os resultados da fonte configurada aparecerão aqui.");
             _ = Dispatcher.BeginInvoke(() => OverlaySearchBox.Focus());
@@ -49,7 +49,7 @@ public partial class MainWindow
     }
     private void CloseSearchOverlay_Click(object sender, RoutedEventArgs e)
     {
-        _searchCancellation?.Cancel();
+        Search.Cancel();
         SearchOverlay.Visibility = Visibility.Collapsed;
     }
     private async void OverlaySearchButton_Click(object sender, RoutedEventArgs e)
@@ -80,66 +80,9 @@ public partial class MainWindow
     }
     private async Task RunSearchAsync(string query)
     {
-        if (!_settings.HasAnyProvider)
+        if (await Search.RunAsync(query, _settings) is { } message)
         {
-            ShowSearchEmpty(
-                "Busca online não configurada",
-                "Cadastre o jogo manualmente ou configure IGDB/RAWG.");
-            return;
-        }
-
-        query = query.Trim();
-        if (query.Length < 2)
-        {
-            ShowSearchEmpty("Digite pelo menos 2 caracteres", "Assim a busca fica mais precisa.");
-            return;
-        }
-
-        _searchCancellation?.Cancel();
-        _searchCancellation?.Dispose();
-        var searchCancellation = new CancellationTokenSource();
-        _searchCancellation = searchCancellation;
-
-        SearchResults.Clear();
-        SearchEmptyState.Visibility = Visibility.Collapsed;
-        SearchLoadingState.Visibility = Visibility.Visible;
-
-        try
-        {
-            var response = await _gameApi.SearchAsync(
-                query,
-                _settings,
-                searchCancellation.Token);
-            foreach (var game in response.Results)
-            {
-                SearchResults.Add(game);
-            }
-
-            SearchLoadingState.Visibility = Visibility.Collapsed;
-            if (SearchResults.Count == 0)
-            {
-                ShowSearchEmpty("Nenhum jogo encontrado", response.Message);
-            }
-            else
-            {
-                SearchEmptyState.Visibility = Visibility.Collapsed;
-                ShowToast(response.Message);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            if (_searchCancellation == searchCancellation)
-            {
-                SearchLoadingState.Visibility = Visibility.Collapsed;
-            }
-        }
-        catch (Exception ex)
-        {
-            if (_searchCancellation == searchCancellation)
-            {
-                SearchLoadingState.Visibility = Visibility.Collapsed;
-                ShowSearchEmpty("A busca não pôde ser concluída", ex.Message);
-            }
+            ShowToast(message);
         }
     }
     private async void AddSearchResult_Click(object sender, RoutedEventArgs e)
@@ -339,12 +282,5 @@ public partial class MainWindow
         {
             ShowToast($"Não foi possível adicionar o jogo: {ex.Message}");
         }
-    }
-    private void ShowSearchEmpty(string title, string message)
-    {
-        SearchLoadingState.Visibility = Visibility.Collapsed;
-        SearchEmptyTitle.Text = title;
-        SearchEmptyMessage.Text = message;
-        SearchEmptyState.Visibility = Visibility.Visible;
     }
 }

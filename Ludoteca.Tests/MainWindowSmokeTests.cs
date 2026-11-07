@@ -85,14 +85,14 @@ public sealed class MainWindowSmokeTests(ITestOutputHelper output)
                 ReleaseYear = 2024,
                 PublicRating = 8.5
             };
-            window.CatalogSections[0].ApplyPage(
+            window.Discover.Sections[0].ApplyPage(
                 new CatalogPage { Results = [catalogGame] },
                 1,
                 reset: true);
             Click(window.DiscoverButton);
             Pump(TimeSpan.FromMilliseconds(500));
 
-            window.SearchResults.Add(catalogGame);
+            window.Search.Results.Add(catalogGame);
             window.SearchOverlay.Visibility = Visibility.Visible;
             Pump(TimeSpan.FromMilliseconds(500));
             window.SearchOverlay.Visibility = Visibility.Collapsed;

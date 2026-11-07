@@ -528,11 +528,90 @@ public sealed class DatabaseService
 
     public async Task DeleteGameAsync(int gameId)
     {
+        string? coverPath;
+        await using (var connection = await OpenConnectionAsync())
+        {
+            var select = connection.CreateCommand();
+            select.CommandText = "SELECT LocalCoverPath FROM Games WHERE Id = $id;";
+            select.Parameters.AddWithValue("$id", gameId);
+            coverPath = await select.ExecuteScalarAsync() as string;
+
+            var command = connection.CreateCommand();
+            command.CommandText = "DELETE FROM Games WHERE Id = $id;";
+            command.Parameters.AddWithValue("$id", gameId);
+            await command.ExecuteNonQueryAsync();
+
+            if (!string.IsNullOrWhiteSpace(coverPath))
+            {
+                var stillUsed = connection.CreateCommand();
+                stillUsed.CommandText = "SELECT COUNT(*) FROM Games WHERE LocalCoverPath = $path;";
+                stillUsed.Parameters.AddWithValue("$path", coverPath);
+                if (Convert.ToInt32(await stillUsed.ExecuteScalarAsync()) > 0)
+                {
+                    coverPath = null;
+                }
+            }
+        }
+
+        DeleteCoverFile(coverPath);
+    }
+
+    public async Task<int?> FindEquivalentGameAsync(GameSearchResult game)
+    {
+        var name = game.Name.Trim();
+        if (name.Length == 0)
+        {
+            return null;
+        }
+
         await using var connection = await OpenConnectionAsync();
         var command = connection.CreateCommand();
-        command.CommandText = "DELETE FROM Games WHERE Id = $id;";
-        command.Parameters.AddWithValue("$id", gameId);
-        await command.ExecuteNonQueryAsync();
+        command.CommandText =
+            """
+            SELECT Id, Name, Source, ExternalId
+            FROM Games
+            WHERE ReleaseYear IS $releaseYear;
+            """;
+        command.Parameters.AddWithValue("$releaseYear", (object?)game.ReleaseYear ?? DBNull.Value);
+
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            var sameEntry =
+                reader.GetString(2).Equals(game.Source, StringComparison.OrdinalIgnoreCase) &&
+                reader.GetString(3) == game.ExternalId;
+            if (!sameEntry &&
+                string.Equals(reader.GetString(1).Trim(), name, StringComparison.CurrentCultureIgnoreCase))
+            {
+                return reader.GetInt32(0);
+            }
+        }
+
+        return null;
+    }
+
+    private void DeleteCoverFile(string? coverPath)
+    {
+        if (string.IsNullOrWhiteSpace(coverPath))
+        {
+            return;
+        }
+
+        var fullPath = Path.GetFullPath(coverPath);
+        var coversRoot = Path.GetFullPath(CoversDirectory) + Path.DirectorySeparatorChar;
+        if (!fullPath.StartsWith(coversRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(fullPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A cover still in use by the window is cleaned up with the library later.
+        }
     }
 
     public async Task<LibraryStats> GetStatsAsync()

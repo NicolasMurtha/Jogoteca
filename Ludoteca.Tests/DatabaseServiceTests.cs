@@ -241,6 +241,41 @@ public sealed class DatabaseServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task DeletingGameAlsoDeletesItsCoverFile()
+    {
+        var database = new DatabaseService(_testDirectory);
+        await database.InitializeAsync();
+        var coverPath = Path.Combine(database.CoversDirectory, "cover.jpg");
+        await File.WriteAllBytesAsync(coverPath, [1, 2, 3]);
+        var gameId = await database.UpsertGameAsync(
+            new GameSearchResult { Source = "rawg", ExternalId = "1", Name = "Hades" },
+            coverPath);
+
+        await database.DeleteGameAsync(gameId);
+
+        Assert.Empty(await database.GetGamesAsync(null));
+        Assert.False(File.Exists(coverPath));
+    }
+
+    [Fact]
+    public async Task FindsSameGameAddedFromAnotherSource()
+    {
+        var database = new DatabaseService(_testDirectory);
+        await database.InitializeAsync();
+        var igdbId = await database.UpsertGameAsync(
+            new GameSearchResult { Source = "igdb", ExternalId = "10", Name = "Hades", ReleaseYear = 2020 },
+            string.Empty);
+
+        var fromRawg = new GameSearchResult { Source = "rawg", ExternalId = "77", Name = " hades ", ReleaseYear = 2020 };
+        var remake = new GameSearchResult { Source = "rawg", ExternalId = "78", Name = "Hades", ReleaseYear = 2024 };
+        var sameEntry = new GameSearchResult { Source = "igdb", ExternalId = "10", Name = "Hades", ReleaseYear = 2020 };
+
+        Assert.Equal(igdbId, await database.FindEquivalentGameAsync(fromRawg));
+        Assert.Null(await database.FindEquivalentGameAsync(remake));
+        Assert.Null(await database.FindEquivalentGameAsync(sameEntry));
+    }
+
+    [Fact]
     public async Task PersistsHideApiWelcomePreference()
     {
         var database = new DatabaseService(_testDirectory);

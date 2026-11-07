@@ -592,6 +592,22 @@ public sealed class GameApiServiceTests
         Assert.Equal(1, handler.IgdbCalls);
     }
 
+    [Fact]
+    public async Task IdentifiesItselfWithUserAgent()
+    {
+        string? userAgent = null;
+        var handler = new StubHttpMessageHandler(request =>
+        {
+            userAgent = request.Headers.UserAgent.ToString();
+            return Json("""{"results":[]}""");
+        });
+        using var service = new GameApiService(handler);
+
+        await service.CheckRawgKeyAsync("key", CancellationToken.None);
+
+        Assert.StartsWith("JOGOTECA/", userAgent);
+    }
+
     private static AppSettings CompleteSettings()
     {
         return new AppSettings

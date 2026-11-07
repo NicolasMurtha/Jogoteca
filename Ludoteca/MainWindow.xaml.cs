@@ -12,6 +12,7 @@ using System.Windows.Threading;
 using Ludoteca.Models;
 using Ludoteca.Services;
 using Ludoteca.Themes;
+using Ludoteca.ViewModels;
 using Microsoft.Win32;
 
 namespace Ludoteca;
@@ -44,7 +45,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private CancellationTokenSource? _catalogCancellation;
     private TaskCompletionSource<bool>? _confirmationCompletion;
     private AppSettings _settings = new();
-    private int? _selectedListId;
     private int? _editingListId;
     private GameEntry? _selectedGame;
     private GameSearchResult? _selectedCatalogGame;
@@ -54,18 +54,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _isListDragging;
     private bool _isInitializingDetail;
     private int _catalogLoadVersion;
-    private LibrarySortMode _librarySortMode = LibrarySortMode.Default;
-    private GameLibraryFilter _activeLibraryFilter = GameLibraryFilter.None;
     private string _selectedListColor = ListColors[0];
     private string _selectedListEmoji = ListEmojiCatalog.Game;
-    private string _selectedListTitle = "Biblioteca";
-    private string _selectedListSubtitle = "Todos os jogos que você adicionou";
-    private string _libraryNameFilter = string.Empty;
-    private string _totalGameCount = "0";
-    private string _unratedGameCount = "0";
-    private string _reviewedGameCount = "0";
-    private string _unorganizedGameCount = "0";
-    private string _averageRating = "-";
     private bool _isDarkTheme;
     private bool _hasUnreadNotifications;
 
@@ -77,6 +67,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _dataExportService = new DataExportService(_database);
         _settingsService = new SettingsService(_database);
         _backupService = new BackupService(_database);
+        Library = new LibraryViewModel(_database);
         _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.2) };
         _toastTimer.Tick += (_, _) =>
         {
@@ -88,8 +79,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public ObservableCollection<GameList> Lists { get; } = [];
-    public ObservableCollection<GameEntry> Games { get; } = [];
+    public LibraryViewModel Library { get; }
+
     public ObservableCollection<GameSearchResult> SearchResults { get; } = [];
     public ObservableCollection<ListEmojiOption> ListEmojiOptions { get; } =
         new(ListEmojiCatalog.Options);
@@ -130,26 +121,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<ReleaseNotification> ReleaseNotifications { get; } = [];
     public ObservableCollection<UpcomingReleaseWatch> UpcomingReleaseWatches { get; } = [];
 
-    public bool IsViewingList => _selectedListId.HasValue;
-    public bool IsViewingLibrary => !_selectedListId.HasValue;
     public string AppVersionDisplay { get; } =
         System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version is { } version
             ? $"{version.Major}.{version.Minor}.{version.Build}"
             : string.Empty;
     public string ThemeToggleText => IsDarkTheme ? "Usar tema claro" : "Usar tema escuro";
     public string ThemeToggleIcon => IsDarkTheme ? "\uE706" : "\uE708";
-    public string NameSortHeaderText => _librarySortMode switch
-    {
-        LibrarySortMode.NameAscending => "Nome A-Z",
-        LibrarySortMode.NameDescending => "Nome Z-A",
-        _ => "Nome"
-    };
-    public string ReleaseSortHeaderText => _librarySortMode switch
-    {
-        LibrarySortMode.ReleaseDateDescending => "Lançamento ↓",
-        LibrarySortMode.ReleaseDateAscending => "Lançamento ↑",
-        _ => "Lançamento"
-    };
 
     public string SelectedListEmoji
     {
@@ -174,48 +151,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         get => _hasUnreadNotifications;
         private set => SetField(ref _hasUnreadNotifications, value);
-    }
-
-    public string SelectedListTitle
-    {
-        get => _selectedListTitle;
-        private set => SetField(ref _selectedListTitle, value);
-    }
-
-    public string SelectedListSubtitle
-    {
-        get => _selectedListSubtitle;
-        private set => SetField(ref _selectedListSubtitle, value);
-    }
-
-    public string TotalGameCount
-    {
-        get => _totalGameCount;
-        private set => SetField(ref _totalGameCount, value);
-    }
-
-    public string UnratedGameCount
-    {
-        get => _unratedGameCount;
-        private set => SetField(ref _unratedGameCount, value);
-    }
-
-    public string ReviewedGameCount
-    {
-        get => _reviewedGameCount;
-        private set => SetField(ref _reviewedGameCount, value);
-    }
-
-    public string UnorganizedGameCount
-    {
-        get => _unorganizedGameCount;
-        private set => SetField(ref _unorganizedGameCount, value);
-    }
-
-    public string AverageRating
-    {
-        get => _averageRating;
-        private set => SetField(ref _averageRating, value);
     }
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
@@ -326,8 +261,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async Task RefreshAllAsync()
     {
-        await RefreshListsAsync();
-        await RefreshLibraryAsync();
+        await Library.RefreshAllAsync();
         await RefreshReleaseNotificationsAsync();
     }
 

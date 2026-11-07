@@ -68,11 +68,11 @@ public partial class MainWindow
         }
 
         _isDragging = true;
-        var dragData = new GameDragData(game, _selectedListId);
+        var dragData = new GameDragData(game, Library.SelectedListId);
         DragDrop.DoDragDrop(
             (DependencyObject)sender,
             new DataObject(typeof(GameDragData), dragData),
-            _selectedListId.HasValue
+            Library.SelectedListId.HasValue
                 ? DragDropEffects.Move
                 : DragDropEffects.Copy);
         _ = Dispatcher.BeginInvoke(
@@ -134,7 +134,7 @@ public partial class MainWindow
             try
             {
                 await _database.MoveListAsync(listDragData.ListId, targetList.Id);
-                await RefreshListsAsync();
+                await Library.RefreshListsAsync();
                 ShowToast("Ordem das listas atualizada.");
             }
             catch (Exception ex)

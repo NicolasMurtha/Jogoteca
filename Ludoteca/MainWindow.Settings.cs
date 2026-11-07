@@ -266,15 +266,8 @@ public partial class MainWindow
 
             _selectedGame = null;
             _selectedCatalogGame = null;
-            _activeLibraryFilter = GameLibraryFilter.None;
-            _librarySortMode = LibrarySortMode.Default;
-            NotifySortHeaderChanges();
-            _libraryNameFilter = string.Empty;
+            Library.Reset();
             LibraryNameFilterBox.Clear();
-            SetSelectedListId(null);
-            SelectedListTitle = "Biblioteca";
-            SelectedListSubtitle = "Todos os jogos que você adicionou";
-            SetListActionButtonsVisible(false);
 
             await _database.ClearLibraryAsync();
             CoverImageConverter.ClearCache();
@@ -425,10 +418,7 @@ public partial class MainWindow
         _selectedGame = null;
         _selectedCatalogGame = null;
         _editingListId = null;
-        _activeLibraryFilter = GameLibraryFilter.None;
-        _librarySortMode = LibrarySortMode.Default;
-        NotifySortHeaderChanges();
-        _libraryNameFilter = string.Empty;
+        Library.Reset();
         LibraryNameFilterBox.Clear();
 
         SearchResults.Clear();
@@ -436,11 +426,6 @@ public partial class MainWindow
         {
             section.Clear();
         }
-
-        SetSelectedListId(null);
-        SelectedListTitle = "Biblioteca";
-        SelectedListSubtitle = "Todos os jogos que você adicionou";
-        SetListActionButtonsVisible(false);
     }
 
     private void ConfigureProviderUi()

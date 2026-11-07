@@ -31,24 +31,14 @@ public partial class MainWindow
             return;
         }
 
-        SetSelectedListId(list.Id);
-        _activeLibraryFilter = GameLibraryFilter.None;
-        SelectedListTitle = $"{list.Emoji} {list.Name}".Trim();
-        SelectedListSubtitle = ListSubtitle(list.GameCount);
-        SetListActionButtonsVisible(true);
+        var showing = Library.ShowListAsync(list);
         ShowLibraryView();
-        await RefreshLibraryAsync();
-    }
-    private void SetListActionButtonsVisible(bool visible)
-    {
-        var visibility = visible ? Visibility.Visible : Visibility.Collapsed;
-        EditCurrentListButton.Visibility = visibility;
-        DeleteCurrentListButton.Visibility = visibility;
+        await showing;
     }
     private void OpenCreateList_Click(object sender, RoutedEventArgs e)
     {
         _editingListId = null;
-        _selectedListColor = ListColors[Lists.Count % ListColors.Length];
+        _selectedListColor = ListColors[Library.Lists.Count % ListColors.Length];
         SelectedListEmoji = ListEmojiCatalog.Game;
         ListEditorTitle.Text = "Criar uma lista";
         ListEditorSubtitle.Text = "Personalize o nome, o emoji e a cor da lista.";
@@ -60,13 +50,7 @@ public partial class MainWindow
     }
     private void EditCurrentList_Click(object sender, RoutedEventArgs e)
     {
-        if (!_selectedListId.HasValue)
-        {
-            return;
-        }
-
-        var list = Lists.FirstOrDefault(item => item.Id == _selectedListId.Value);
-        if (list is null)
+        if (Library.SelectedList is not { } list)
         {
             return;
         }
@@ -144,7 +128,7 @@ public partial class MainWindow
             return;
         }
 
-        if (Lists.Any(list =>
+        if (Library.Lists.Any(list =>
                 list.Id != _editingListId &&
                 list.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
         {
@@ -166,22 +150,17 @@ public partial class MainWindow
             else
             {
                 var list = await _database.CreateListAsync(name, _selectedListColor, emoji);
-                SetSelectedListId(list.Id);
+                Library.SelectList(list.Id);
                 ShowToast($"Lista \"{name}\" criada.");
             }
 
             ListEditorOverlay.Visibility = Visibility.Collapsed;
-            await RefreshListsAsync();
-            var selected = _selectedListId.HasValue
-                ? Lists.FirstOrDefault(list => list.Id == _selectedListId.Value)
-                : null;
-            if (selected is not null)
+            await Library.RefreshListsAsync();
+            if (Library.SelectedList is { } selected)
             {
-                SelectedListTitle = $"{selected.Emoji} {selected.Name}".Trim();
-                SelectedListSubtitle = ListSubtitle(selected.GameCount);
-                SetListActionButtonsVisible(true);
+                var showing = Library.ShowListAsync(selected);
                 ShowLibraryView();
-                await RefreshLibraryAsync();
+                await showing;
             }
         }
         catch (Exception ex)
@@ -191,13 +170,7 @@ public partial class MainWindow
     }
     private async void DeleteCurrentList_Click(object sender, RoutedEventArgs e)
     {
-        if (!_selectedListId.HasValue)
-        {
-            return;
-        }
-
-        var selected = Lists.FirstOrDefault(list => list.Id == _selectedListId.Value);
-        if (selected is null)
+        if (Library.SelectedList is not { } selected)
         {
             return;
         }
@@ -214,10 +187,7 @@ public partial class MainWindow
         try
         {
             await _database.DeleteListAsync(selected.Id);
-            SetSelectedListId(null);
-            SelectedListTitle = "Biblioteca";
-            SelectedListSubtitle = "Todos os jogos que você adicionou";
-            SetListActionButtonsVisible(false);
+            Library.SelectList(null);
             await RefreshAllAsync();
             ShowLibraryView();
             ShowToast("Lista excluída.");
@@ -226,45 +196,5 @@ public partial class MainWindow
         {
             ShowToast($"Não foi possível excluir a lista: {ex.Message}");
         }
-    }
-    private async Task RefreshListsAsync()
-    {
-        var lists = await _database.GetListsAsync();
-        Lists.Clear();
-        foreach (var list in lists)
-        {
-            Lists.Add(list);
-        }
-
-        if (!_selectedListId.HasValue)
-        {
-            return;
-        }
-
-        var selected = Lists.FirstOrDefault(list => list.Id == _selectedListId.Value);
-        if (selected is null)
-        {
-            SetSelectedListId(null);
-            SetListActionButtonsVisible(false);
-            return;
-        }
-
-        SelectedListTitle = $"{selected.Emoji} {selected.Name}".Trim();
-        SelectedListSubtitle = ListSubtitle(selected.GameCount);
-    }
-    private static string ListSubtitle(int gameCount)
-    {
-        return $"{gameCount} {(gameCount == 1 ? "jogo nesta lista" : "jogos nesta lista")}";
-    }
-    private void SetSelectedListId(int? listId)
-    {
-        if (_selectedListId == listId)
-        {
-            return;
-        }
-
-        _selectedListId = listId;
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsViewingList)));
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsViewingLibrary)));
     }
 }

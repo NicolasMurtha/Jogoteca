@@ -174,13 +174,13 @@ public partial class MainWindow
         {
             if (await _database.FindEquivalentGameAsync(game) is int existingId)
             {
-                if (_selectedListId.HasValue)
+                if (Library.SelectedListId.HasValue)
                 {
-                    await _database.AddGameToListAsync(existingId, _selectedListId.Value);
+                    await _database.AddGameToListAsync(existingId, Library.SelectedListId.Value);
                 }
 
                 await RefreshAllAsync();
-                ShowToast(_selectedListId.HasValue
+                ShowToast(Library.SelectedListId.HasValue
                     ? $"\"{game.Name}\" já estava na biblioteca e foi colocado na lista atual."
                     : $"\"{game.Name}\" já está na sua biblioteca.");
                 return true;
@@ -222,9 +222,9 @@ public partial class MainWindow
 
             var gameId = await _database.UpsertGameAsync(gameToSave, coverPath);
             var addedToCurrentList = false;
-            if (_selectedListId.HasValue)
+            if (Library.SelectedListId.HasValue)
             {
-                await _database.AddGameToListAsync(gameId, _selectedListId.Value);
+                await _database.AddGameToListAsync(gameId, Library.SelectedListId.Value);
                 addedToCurrentList = true;
             }
 
@@ -322,9 +322,9 @@ public partial class MainWindow
         {
             var gameId = await _database.UpsertGameAsync(game, coverPath);
             var addedToCurrentList = false;
-            if (_selectedListId.HasValue)
+            if (Library.SelectedListId.HasValue)
             {
-                await _database.AddGameToListAsync(gameId, _selectedListId.Value);
+                await _database.AddGameToListAsync(gameId, Library.SelectedListId.Value);
                 addedToCurrentList = true;
             }
 

@@ -22,12 +22,15 @@ public sealed class MainWindowSmokeTests(ITestOutputHelper output)
     {
         var report = RunOnStaThread(OpenWindowAndVisitScreens);
 
-        foreach (var line in report.Log)
+        foreach (var line in report.Log.Concat(report.BindingErrors.Distinct()))
         {
             output.WriteLine(line);
         }
 
         Assert.Empty(report.BindingErrors);
+        // Only the cards on screen (plus a small margin) are created.
+        Assert.InRange(report.GridCardsRealized, 1, LibrarySize / 2);
+        Assert.InRange(report.ListRowsRealized, 1, LibrarySize / 2);
     }
 
     private static SmokeReport OpenWindowAndVisitScreens()
@@ -59,17 +62,19 @@ public sealed class MainWindowSmokeTests(ITestOutputHelper output)
                 Top = 0
             };
             window.Show();
-            PumpUntil(() => window.Lists.Count > 0, TimeSpan.FromSeconds(20));
-            report.Log.Add($"Lists loaded: {window.Lists.Count}");
+            PumpUntil(() => window.Library.Lists.Count > 0, TimeSpan.FromSeconds(20));
+            report.Log.Add($"Lists loaded: {window.Library.Lists.Count}");
 
             Click(window.AllGamesButton);
-            PumpUntil(() => window.Games.Count == LibrarySize, TimeSpan.FromSeconds(20));
-            report.Log.Add($"Library games: {window.Games.Count}");
-            report.Log.Add($"Grid cards realized: {CountNamed(window.LibraryGridView, "GameCardHoverArea")}");
+            PumpUntil(() => window.Library.Games.Count == LibrarySize, TimeSpan.FromSeconds(20));
+            report.Log.Add($"Library games: {window.Library.Games.Count}");
+            report.GridCardsRealized = CountNamed(window.LibraryGridView, "GameCardHoverArea");
+            report.Log.Add($"Grid cards realized: {report.GridCardsRealized}");
 
             Click(window.LibraryListViewButton);
             Pump(TimeSpan.FromSeconds(1));
-            report.Log.Add($"List rows realized: {CountRealizedRows(window.LibraryListView)}");
+            report.ListRowsRealized = CountRealizedRows(window.LibraryListView);
+            report.Log.Add($"List rows realized: {report.ListRowsRealized}");
             Click(window.LibraryGridViewButton);
 
             var catalogGame = new GameSearchResult
@@ -97,7 +102,7 @@ public sealed class MainWindowSmokeTests(ITestOutputHelper output)
             Pump(TimeSpan.FromMilliseconds(500));
             window.CatalogDetailOverlay.Visibility = Visibility.Collapsed;
 
-            window.DetailPanel.DataContext = window.Games[0];
+            window.DetailPanel.DataContext = window.Library.Games[0];
             window.DetailOverlay.Visibility = Visibility.Visible;
             Pump(TimeSpan.FromMilliseconds(500));
             window.DetailOverlay.Visibility = Visibility.Collapsed;
@@ -265,6 +270,8 @@ public sealed class MainWindowSmokeTests(ITestOutputHelper output)
     {
         public List<string> BindingErrors { get; } = [];
         public List<string> Log { get; } = [];
+        public int GridCardsRealized { get; set; }
+        public int ListRowsRealized { get; set; }
     }
 
     private sealed class BindingErrorListener(List<string> errors) : TraceListener

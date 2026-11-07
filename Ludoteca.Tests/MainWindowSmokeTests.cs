@@ -41,6 +41,7 @@ public sealed class MainWindowSmokeTests(ITestOutputHelper output)
         // Only the cards on screen (plus a small margin) are created.
         Assert.InRange(report.GridCardsRealized, 1, LibrarySize / 2);
         Assert.InRange(report.ListRowsRealized, 1, LibrarySize / 2);
+        Assert.True(report.SupportOpened);
     }
 
     private static void OpenWindowAndVisitScreens(SmokeReport report)
@@ -123,6 +124,11 @@ public sealed class MainWindowSmokeTests(ITestOutputHelper output)
             window.DetailOverlay.Visibility = Visibility.Visible;
             Pump(TimeSpan.FromMilliseconds(500));
             window.DetailOverlay.Visibility = Visibility.Collapsed;
+
+            report.Add("Opening support");
+            Click(window.SupportButton);
+            report.SupportOpened = window.SupportOverlay.Visibility == Visibility.Visible;
+            window.SupportOverlay.Visibility = Visibility.Collapsed;
 
             report.Add("Closing window");
             window.Close();
@@ -297,6 +303,7 @@ public sealed class MainWindowSmokeTests(ITestOutputHelper output)
         }
         public int GridCardsRealized { get; set; }
         public int ListRowsRealized { get; set; }
+        public bool SupportOpened { get; set; }
     }
 
     private sealed class BindingErrorListener(List<string> errors) : TraceListener

@@ -74,6 +74,21 @@ de dados gratuita em **Configurações**:
 Com as duas configuradas, a JOGOTECA usa o IGDB e recorre ao RAWG
 automaticamente quando precisar.
 
+## Apoie a JOGOTECA 💜
+
+A JOGOTECA é e continuará **gratuita**. Se ela te ajuda a organizar seus jogos,
+considere apoiar com um [Pix de qualquer valor](https://nubank.com.br/cobrar/sj3lc/6aee81d8-0eec-4b0c-bbee-c28cf971d22f).
+
+Quem apoia ganha:
+
+- **Acesso antecipado** às novas versões, antes de todo mundo.
+- **Contato direto comigo** para tirar dúvidas, sugerir ideias e novas
+  funcionalidades ou falar sobre qualquer assunto.
+
+Depois do Pix, é só mandar o comprovante pelo
+[WhatsApp](https://wa.me/5516993827602?text=Ol%C3%A1!%20Vim%20pela%20JOGOTECA.).
+O botão **Apoiar**, no topo do app, leva aos mesmos lugares.
+
 ## Para desenvolvedores
 
 Feita em WPF com .NET 10 e SQLite.

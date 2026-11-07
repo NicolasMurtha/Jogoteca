@@ -169,6 +169,48 @@
 
                 <StackPanel Orientation="Horizontal"
                             HorizontalAlignment="Right">
+                    <Button x:Name="SupportButton"
+                            Height="28"
+                            Margin="0,0,6,0"
+                            Padding="12,0"
+                            VerticalAlignment="Center"
+                            Cursor="Hand"
+                            Click="OpenSupport_Click"
+                            ToolTip="Apoie a JOGOTECA"
+                            AutomationProperties.Name="Apoiar a JOGOTECA"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Border"
+                                        Background="{DynamicResource NavSelectedBackground}"
+                                        CornerRadius="14"
+                                        Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Border" Property="Background" Value="{DynamicResource NavCounterBackground}" />
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="Border" Property="Opacity" Value="0.8" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="💜"
+                                       FontFamily="Segoe UI Emoji"
+                                       FontSize="12"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Text="Apoiar"
+                                       Margin="6,0,0,0"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimary}"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                     <Button Style="{StaticResource IconButton}"
                             Width="46"
                             Height="43"
@@ -2203,6 +2245,105 @@
                         <Button Style="{StaticResource PrimaryButton}"
                                 Click="ApiGuideOpenSettings_Click"
                                 Content="Já tenho a chave" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid x:Name="SupportOverlay"
+              Grid.RowSpan="2"
+              Background="{DynamicResource OverlayScrim}"
+              Visibility="Collapsed"
+              Panel.ZIndex="45">
+            <Border Width="520"
+                    Margin="0,24"
+                    Padding="28"
+                    Background="{DynamicResource AppBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="22"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <Grid>
+                                <TextBlock Text="💜"
+                                           FontFamily="Segoe UI Emoji"
+                                           FontSize="34" />
+                                <Button Style="{StaticResource IconButton}"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Top"
+                                        Click="CloseSupport_Click">
+                                    <TextBlock FontFamily="Segoe Fluent Icons" Text="&#xE8BB;" FontSize="14" />
+                                </Button>
+                            </Grid>
+                            <TextBlock Text="Apoie a JOGOTECA"
+                                       Margin="0,10,0,0"
+                                       FontSize="23"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Margin="0,8,0,0"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       LineHeight="21"
+                                       TextWrapping="Wrap"
+                                       Text="A JOGOTECA é e continuará gratuita. Se ela te ajuda a organizar seus jogos, considere apoiar com um Pix de qualquer valor. Quem apoia ganha:" />
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="30" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="🚀" FontFamily="Segoe UI Emoji" FontSize="16" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="Acesso antecipado" FontWeight="SemiBold" />
+                                    <TextBlock Text="Receba as novas versões antes de todo mundo."
+                                               Margin="0,2,0,0"
+                                               Foreground="{DynamicResource TextSecondary}"
+                                               TextWrapping="Wrap"
+                                               LineHeight="19" />
+                                </StackPanel>
+                            </Grid>
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="30" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="💬" FontFamily="Segoe UI Emoji" FontSize="16" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="Contato direto comigo" FontWeight="SemiBold" />
+                                    <TextBlock Text="Tire dúvidas, sugira ideias e novas funcionalidades ou fale sobre qualquer assunto."
+                                               Margin="0,2,0,0"
+                                               Foreground="{DynamicResource TextSecondary}"
+                                               TextWrapping="Wrap"
+                                               LineHeight="19" />
+                                </StackPanel>
+                            </Grid>
+                            <Border Margin="0,18,0,0"
+                                    Padding="14"
+                                    Background="{DynamicResource SurfaceMuted}"
+                                    CornerRadius="12">
+                                <TextBlock Foreground="{DynamicResource TextSecondary}"
+                                           LineHeight="19"
+                                           TextWrapping="Wrap"
+                                           Text="Como funciona: faça o Pix pelo botão abaixo e depois me mande o comprovante pelo WhatsApp. Pronto, você entra na lista de apoiadores." />
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <StackPanel Grid.Row="1"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Right"
+                                Margin="0,22,0,0">
+                        <Button Style="{StaticResource SecondaryButton}"
+                                Margin="0,0,9,0"
+                                Click="OpenSupportWhatsApp_Click"
+                                Content="Falar no WhatsApp" />
+                        <Button Style="{StaticResource PrimaryButton}"
+                                Click="OpenSupportPix_Click"
+                                Content="Apoiar com Pix" />
                     </StackPanel>
                 </Grid>
             </Border>
